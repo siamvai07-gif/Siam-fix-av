@@ -1,0 +1,2252 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="theme-color" content="#0a0b0e">
+<title>RX Admin Panel</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  :root{
+    --bg:#0a0b0e;--card:#13151a;--card2:#1a1d23;--border:#23262c;
+    --text:#e8eaee;--muted:#8a8e97;--primary:#28a909;--primary-d:#1f8806;
+    --danger:#e5322d;--warn:#ffb82e;--info:#3ea6ff;--radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+    min-height:100vh;overflow-x:hidden;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit}
+  input,select,textarea{font-family:inherit;outline:none}
+
+  /* LOGIN */
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .login-card{
+    width:100%;max-width:380px;background:var(--card);border:1px solid var(--border);
+    border-radius:22px;padding:34px 26px;text-align:center;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+    animation:pop .5s cubic-bezier(.2,.9,.3,1.2);
+  }
+  @keyframes pop{from{opacity:0;transform:scale(.95) translateY(20px)}to{opacity:1;transform:none}}
+  .login-logo{
+    width:72px;height:72px;margin:0 auto 18px;border-radius:50%;
+    background:linear-gradient(135deg,#28a909,#0dcc24);
+    display:flex;align-items:center;justify-content:center;
+    font-size:34px;color:#fff;box-shadow:0 10px 30px rgba(40,169,9,.35);
+    animation:rotate-in .8s ease;
+  }
+  @keyframes rotate-in{from{transform:rotate(-30deg) scale(.6);opacity:0}to{transform:none;opacity:1}}
+  .login-card h1{font-size:22px;margin-bottom:6px;font-weight:800}
+  .login-card p{font-size:13px;color:var(--muted);margin-bottom:22px}
+  .login-card input{
+    width:100%;padding:14px 16px;border-radius:12px;
+    background:#0e1013;border:1px solid var(--border);color:var(--text);
+    font-size:15px;letter-spacing:3px;text-align:center;font-weight:700;
+    transition:border-color .2s,box-shadow .2s;
+  }
+  .login-card input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(40,169,9,.15)}
+  .login-card button{
+    width:100%;padding:14px;border-radius:12px;margin-top:14px;
+    background:var(--primary);color:#fff;font-size:15px;font-weight:800;
+    transition:transform .1s,background .2s;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .login-card button:active{transform:scale(.97)}
+  .login-card button:hover{background:var(--primary-d)}
+  .login-card button:disabled{opacity:.5;cursor:not-allowed}
+  .login-note{margin-top:14px;font-size:10.5px;color:var(--muted);line-height:1.5}
+
+  /* APP */
+  #app{display:none;max-width:1200px;margin:0 auto;padding:16px;padding-bottom:80px}
+  .app-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:12px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand-ico{
+    width:44px;height:44px;border-radius:12px;
+    background:linear-gradient(135deg,#28a909,#0dcc24);
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:20px;box-shadow:0 6px 16px rgba(40,169,9,.3);
+  }
+  .brand-txt h1{font-size:17px;font-weight:800;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .brand-txt span{font-size:11px;color:var(--muted)}
+  .logout-btn{
+    padding:10px 14px;border-radius:10px;background:var(--card2);
+    border:1px solid var(--border);color:var(--muted);font-size:13px;
+    display:flex;align-items:center;gap:6px;transition:.2s;flex:none;
+  }
+  .logout-btn:hover{color:var(--danger);border-color:var(--danger)}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px}
+  .stat{
+    background:var(--card);border:1px solid var(--border);border-radius:16px;
+    padding:16px;position:relative;overflow:hidden;
+    animation:fadeUp .4s ease backwards;
+  }
+  .stat:nth-child(2){animation-delay:.05s}
+  .stat:nth-child(3){animation-delay:.1s}
+  .stat:nth-child(4){animation-delay:.15s}
+  .stat:nth-child(5){animation-delay:.2s}
+  .stat:nth-child(6){animation-delay:.25s}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  .stat .ico{
+    width:34px;height:34px;border-radius:10px;
+    background:rgba(40,169,9,.12);color:var(--primary);
+    display:flex;align-items:center;justify-content:center;font-size:15px;
+    margin-bottom:10px;
+  }
+  .stat.info .ico{background:rgba(62,166,255,.12);color:var(--info)}
+  .stat.warn .ico{background:rgba(255,184,46,.12);color:var(--warn)}
+  .stat.danger .ico{background:rgba(229,50,45,.12);color:var(--danger)}
+  .stat span{font-size:11px;color:var(--muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+  .stat b{font-size:22px;font-weight:800;letter-spacing:-.5px}
+  .stat small{font-size:10px;color:var(--muted);font-weight:600}
+
+  .tabs{
+    display:flex;gap:6px;margin-bottom:16px;
+    background:var(--card);padding:5px;border-radius:14px;
+    border:1px solid var(--border);overflow-x:auto;
+    scrollbar-width:none;
+  }
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs button{
+    flex:1;min-width:100px;padding:11px 16px;border-radius:10px;
+    font-size:13px;font-weight:700;color:var(--muted);
+    display:flex;align-items:center;justify-content:center;gap:7px;
+    transition:.2s;white-space:nowrap;
+  }
+  .tabs button.on{background:var(--primary);color:#fff;box-shadow:0 4px 12px rgba(40,169,9,.25)}
+  .tabs button:not(.on):hover{background:var(--card2);color:var(--text)}
+
+  .bottom-nav{
+    display:none;position:fixed;left:0;right:0;bottom:0;z-index:900;
+    background:rgba(19,21,26,.97);backdrop-filter:blur(12px);
+    border-top:1px solid var(--border);
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+  }
+  .bottom-nav button{
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+    padding:7px 2px;border-radius:10px;font-size:9.5px;font-weight:700;color:var(--muted);
+    transition:.15s;
+  }
+  .bottom-nav button i{font-size:17px}
+  .bottom-nav button.on{color:var(--primary);background:rgba(40,169,9,.1)}
+
+  .panel{
+    background:var(--card);border:1px solid var(--border);border-radius:16px;
+    padding:20px;display:none;animation:fadeUp .3s ease;
+  }
+  .panel.on{display:block}
+  .panel h3{font-size:15px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+  label{font-size:11px;color:var(--muted);display:block;margin-bottom:6px;font-weight:700;letter-spacing:.6px;text-transform:uppercase}
+  input[type=text],input[type=number],input[type=search],input[type=url],input[type=password],select,textarea{
+    width:100%;padding:12px 14px;border-radius:12px;
+    background:#0e1013;border:1px solid var(--border);color:var(--text);
+    font-size:14px;transition:border-color .2s,box-shadow .2s;margin-bottom:12px;
+  }
+  input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(40,169,9,.12)}
+  textarea{min-height:88px;resize:vertical;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.5}
+  select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:34px}
+  .btn{
+    padding:12px 20px;border-radius:12px;background:var(--primary);color:#fff;
+    font-size:14px;font-weight:800;display:inline-flex;align-items:center;gap:8px;
+    transition:transform .1s,background .2s;justify-content:center;
+  }
+  .btn:active{transform:scale(.97)}
+  .btn:hover{background:var(--primary-d)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn.gray{background:var(--card2);border:1px solid var(--border);color:var(--text)}
+  .btn.gray:hover{background:var(--border)}
+  .btn.danger{background:var(--danger)}
+  .btn.danger:hover{background:#c22a25}
+  .btn.warnb{background:var(--warn);color:#1a1a1a}
+  .btn.sm{padding:8px 12px;font-size:12px;border-radius:9px}
+  .btn.full{width:100%}
+  .icon-btn{
+    width:34px;height:34px;border-radius:9px;background:var(--card2);
+    border:1px solid var(--border);color:var(--muted);font-size:13px;
+    display:inline-flex;align-items:center;justify-content:center;transition:.15s;flex:none;
+  }
+  .icon-btn:hover{color:var(--text);border-color:var(--muted)}
+  .icon-btn.del:hover{color:var(--danger);border-color:var(--danger)}
+
+  .quick-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+  .quick-row button{
+    padding:12px 6px;background:var(--card2);border:1px solid var(--border);
+    border-radius:10px;color:var(--text);font-size:13px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;gap:5px;transition:.15s;
+  }
+  .quick-row button:hover{border-color:var(--primary);color:var(--primary)}
+  .quick-row button.neg:hover{border-color:var(--danger);color:var(--danger)}
+
+  .user-table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border);margin-top:6px}
+  table{width:100%;border-collapse:collapse;min-width:600px}
+  th,td{padding:12px 14px;text-align:left;font-size:13px;white-space:nowrap}
+  th{
+    background:var(--card2);color:var(--muted);font-size:10px;font-weight:800;
+    text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid var(--border);
+  }
+  tr{border-bottom:1px solid var(--border);transition:background .15s}
+  tr:last-child{border-bottom:0}
+  tr:hover td{background:rgba(255,255,255,.015)}
+  td.pid{font-family:ui-monospace,Menlo,monospace;font-weight:700;color:var(--info)}
+  td.bal{font-weight:800;color:var(--primary)}
+  td.dep{color:var(--muted)}
+  td.seen{color:var(--muted);font-size:12px}
+
+  .msg{
+    padding:12px 14px;border-radius:12px;font-size:13px;font-weight:600;
+    display:none;align-items:flex-start;gap:10px;margin-top:12px;line-height:1.5;
+    animation:fadeUp .25s ease;
+  }
+  .msg.on{display:flex}
+  .msg.ok{background:rgba(40,169,9,.12);color:#5ee27a;border:1px solid rgba(40,169,9,.3)}
+  .msg.err{background:rgba(229,50,45,.12);color:#ff8585;border:1px solid rgba(229,50,45,.3)}
+  .msg.info{background:rgba(62,166,255,.12);color:#8bc9ff;border:1px solid rgba(62,166,255,.3)}
+  .msg i{margin-top:2px}
+
+  .spinner{
+    width:20px;height:20px;border:2px solid rgba(255,255,255,.15);
+    border-top-color:var(--primary);border-radius:50%;
+    animation:spin .8s linear infinite;display:inline-block;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-row{
+    padding:40px 20px;text-align:center;color:var(--muted);font-size:13px;
+    display:flex;flex-direction:column;align-items:center;gap:12px;
+  }
+  .loading-row .spinner{width:28px;height:28px;border-width:3px}
+  .empty{
+    padding:50px 20px;text-align:center;color:var(--muted);
+    display:flex;flex-direction:column;align-items:center;gap:12px;
+  }
+  .empty i{font-size:44px;color:var(--border)}
+  .empty p{font-size:13px}
+
+  .search-bar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .search-bar input{margin:0;flex:1;min-width:180px}
+  .search-bar .btn{margin:0}
+  .create-bar{display:grid;grid-template-columns:1.2fr 1fr auto;gap:8px;margin-bottom:16px;padding:12px;background:var(--card2);border:1px dashed var(--border);border-radius:12px}
+  .create-bar input{margin:0}
+  .bal-preview{font-size:12px;color:var(--muted);margin:-6px 0 12px;min-height:16px}
+  .bal-preview b{color:var(--primary)}
+
+  .badge{
+    display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;
+    font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;flex:none;
+  }
+  .badge.ok{background:rgba(40,169,9,.15);color:#5ee27a}
+  .badge.off{background:rgba(229,50,45,.15);color:#ff8585}
+  .badge.info{background:rgba(62,166,255,.15);color:#8bc9ff}
+  .badge.warn{background:rgba(255,184,46,.15);color:#ffd48a}
+  .badge.dim{background:var(--card2);color:var(--muted);border:1px solid var(--border)}
+
+  .live-dot{
+    display:inline-block;width:8px;height:8px;border-radius:50%;
+    background:var(--primary);box-shadow:0 0 0 0 rgba(40,169,9,.7);
+    animation:pulse 2s infinite;margin-left:6px;
+  }
+  .live-dot.off{background:var(--danger);animation:none}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(40,169,9,.7)}
+    70%{box-shadow:0 0 0 10px rgba(40,169,9,0)}
+    100%{box-shadow:0 0 0 0 rgba(40,169,9,0)}
+  }
+
+  #toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);
+    background:var(--card);border:1px solid var(--border);color:var(--text);
+    padding:14px 20px;border-radius:14px;font-size:14px;font-weight:600;
+    box-shadow:0 12px 40px rgba(0,0,0,.6);z-index:9999;
+    display:flex;align-items:center;gap:10px;opacity:0;transition:.3s cubic-bezier(.2,.9,.3,1.2);
+    max-width:90vw;
+  }
+  #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+  #toast.ok i{color:var(--primary)}
+  #toast.err i{color:var(--danger)}
+  #toast.info i{color:var(--info)}
+
+  .user-modal,.confirm-modal{
+    position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9998;
+    display:none;align-items:flex-end;justify-content:center;
+    padding:0;backdrop-filter:blur(4px);
+  }
+  .user-modal.on,.confirm-modal.on{display:flex}
+  .user-modal-inner,.confirm-inner{
+    width:100%;max-width:520px;background:var(--card);
+    border-radius:22px 22px 0 0;padding:22px;
+    max-height:90vh;overflow-y:auto;
+    animation:slideUp .3s cubic-bezier(.2,.9,.3,1.2);
+    border-top:1px solid var(--border);
+  }
+  @keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}
+  .user-modal-inner .grabber,.confirm-inner .grabber{
+    width:40px;height:4px;background:var(--border);border-radius:2px;
+    margin:0 auto 16px;
+  }
+  .user-modal-inner h3,.confirm-inner h3{margin-bottom:14px}
+  .detail-row{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:12px 0;border-bottom:1px solid var(--border);font-size:13px;
+  }
+  .detail-row:last-child{border-bottom:0}
+  .detail-row span{color:var(--muted)}
+  .detail-row b{font-weight:700;text-align:right;word-break:break-all}
+
+  /* ===== Settings: gateway cards & numbers ===== */
+  .card2{background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px}
+  .gw-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .gw-logo-prev{
+    width:46px;height:46px;border-radius:10px;background:#0e1013;flex:none;
+    display:flex;align-items:center;justify-content:center;overflow:hidden;
+    border:1px solid var(--border);color:var(--muted);font-size:18px;
+  }
+  .gw-logo-prev img{max-width:100%;max-height:100%;object-fit:contain}
+  .gw-head .grow{flex:1;min-width:0}
+  .gw-head h4{font-size:14px;font-weight:800;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .num-row{
+    display:grid;grid-template-columns:1fr 1.3fr auto auto auto;gap:7px;align-items:center;
+    background:#0e1013;border:1px solid var(--border);border-radius:12px;padding:8px 10px;margin-bottom:8px;
+  }
+  .num-row input{margin:0;padding:9px 10px;font-size:13px}
+  .num-row .num-idx{font-size:10px;color:var(--muted);font-weight:800;width:16px;text-align:center;flex:none}
+  .switch{position:relative;display:inline-block;width:40px;height:22px;flex:none}
+  .switch input{opacity:0;width:0;height:0}
+  .switch .sl{position:absolute;inset:0;background:var(--border);border-radius:20px;transition:.2s;cursor:pointer}
+  .switch .sl:before{content:"";position:absolute;height:16px;width:16px;left:3px;top:3px;background:#9ea0a3;border-radius:50%;transition:.2s}
+  .switch input:checked + .sl{background:var(--primary)}
+  .switch input:checked + .sl:before{transform:translateX(18px);background:#fff}
+  .num-count{font-size:11px;color:var(--muted);margin:6px 0 10px}
+  .fixed-row{display:none}
+  .fixed-row.on{display:block}
+  .save-bar{
+    position:sticky;bottom:0;z-index:20;display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+    background:var(--card);border-top:1px solid var(--border);
+    padding:12px 0 4px;margin-top:6px;
+  }
+  .save-bar .btn{flex:1;min-width:140px}
+  .remote-bar{
+    display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+    background:rgba(255,184,46,.08);border:1px solid rgba(255,184,46,.3);
+    border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:12.5px;color:#ffd48a;
+  }
+  .remote-bar.on{display:flex}
+  .fn-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .fn-row input{margin:0;flex:1;min-width:200px}
+
+  /* ===== Setup tab ===== */
+  .section{border-top:1px solid var(--border);margin:20px 0 16px;padding-top:16px}
+  .section:first-of-type{border-top:0;margin-top:0;padding-top:0}
+  .hint{font-size:12.5px;color:var(--muted);line-height:1.65;margin-bottom:12px}
+  .hint b{color:var(--text)}
+  .hint code, .detail-row code{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:1px 6px;color:#9ee49e}
+  pre.code{
+    position:relative;background:#0b0d10;border:1px solid var(--border);border-radius:12px;
+    padding:38px 14px 14px;overflow-x:auto;
+    font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-size:11.5px;line-height:1.55;color:#cfe3cf;margin-bottom:12px;white-space:pre;
+    tab-size:2;
+  }
+  pre.code .copy-btn{position:absolute;top:8px;right:8px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  ol.steps{margin:0 0 12px 18px;font-size:13px;line-height:1.9;color:#c9ccd1}
+  ol.steps code{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:1px 7px;color:#9ee49e}
+  ul.bullets{margin:0 0 12px 18px;font-size:13px;line-height:1.8;color:#c9ccd1}
+  .check-item{
+    display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:#0e1013;
+    border:1px solid var(--border);border-radius:10px;margin-bottom:7px;font-size:13px;line-height:1.5;
+    cursor:pointer;transition:.15s;
+  }
+  .check-item input{margin-top:2px;accent-color:var(--primary);width:16px;height:16px;flex:none}
+  .check-item.done{opacity:.5}
+  .check-item.done span{text-decoration:line-through}
+  .ck-progress{font-size:12px;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .ck-progress b{color:var(--primary)}
+  .msg-list-item{background:#0e1013;border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px}
+  .msg-list-item .mh{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--muted);margin-bottom:6px;flex-wrap:wrap}
+  .msg-list-item .mh b{color:var(--info);font-family:ui-monospace,Menlo,monospace}
+  .msg-list-item .mt{font-size:13px;line-height:1.55;word-break:break-word;white-space:pre-wrap}
+  .dep-item{background:#0e1013;border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px}
+  .dep-item .dh{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .dep-item .dh b{font-family:ui-monospace,Menlo,monospace;color:var(--info);font-size:13px}
+  .dep-item .dg{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px 12px;font-size:12px;color:var(--muted);margin-bottom:10px}
+  .dep-item .dg b{color:var(--text);font-weight:700}
+  .dep-item .da{display:flex;gap:8px;flex-wrap:wrap}
+  .hidden{display:none!important}
+
+  @media(max-width:768px){
+    .tabs{display:none}
+    .bottom-nav{display:flex}
+    #app{padding:12px;padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+    .panel{padding:16px}
+    .stat b{font-size:19px}
+    .quick-row{grid-template-columns:repeat(2,1fr)}
+    .create-bar{grid-template-columns:1fr 1fr}
+    .create-bar .btn{grid-column:1/-1}
+    .grid2{grid-template-columns:1fr}
+    .num-row{grid-template-columns:1fr 1.4fr auto auto}
+    .num-row .num-idx{display:none}
+    #toast{bottom:calc(84px + env(safe-area-inset-bottom))}
+  }
+  @media(max-width:400px){
+    .num-row{grid-template-columns:1fr auto}
+    .num-row input.num-label{grid-column:1/2}
+    .num-row input.num-number{grid-column:1/-1}
+  }
+  @keyframes shake{
+    0%,100%{transform:translateX(0)}
+    20%,60%{transform:translateX(-8px)}
+    40%,80%{transform:translateX(8px)}
+  }
+</style>
+</head>
+<body>
+<!-- ═══════ LOGIN ═══════ -->
+<div id="login">
+  <div class="login-card">
+    <div class="login-logo"><i class="fa-solid fa-shield-halved"></i></div>
+    <h1>RX Admin Panel</h1>
+    <p>Admin key দিয়ে প্রবেশ করুন</p>
+    <input type="password" id="adminKey" placeholder="• • • • • • •" autocomplete="off" spellcheck="false">
+    <button id="loginBtn"><i class="fa-solid fa-arrow-right-to-bracket"></i><span>লগইন</span></button>
+    <div class="msg" id="loginMsg"></div>
+    <div class="login-note">এই key শুধু প্যানেলের UI gate। আসল সিকিউরিটি Firebase rules + backend Function (বিস্তারিত: সেটআপ ট্যাব)।</div>
+  </div>
+</div>
+
+<!-- ═══════ APP ═══════ -->
+<div id="app">
+  <div class="app-header">
+    <div class="brand">
+      <div class="brand-ico"><i class="fa-solid fa-chart-line"></i></div>
+      <div class="brand-txt">
+        <h1>RX Admin <span class="live-dot" id="connDot"></span> <span class="badge dim" id="sysBadge">…</span></h1>
+        <span id="whoami">Realtime Database</span>
+      </div>
+    </div>
+    <button class="logout-btn" id="logoutBtn"><i class="fa-solid fa-right-from-bracket"></i> লগআউট</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="ico"><i class="fa-solid fa-users"></i></div>
+      <span>মোট ইউজার</span><b id="sUsers">—</b>
+    </div>
+    <div class="stat info">
+      <div class="ico"><i class="fa-solid fa-wallet"></i></div>
+      <span>মোট ব্যালেন্স</span><b id="sBal">—</b>
+    </div>
+    <div class="stat warn">
+      <div class="ico"><i class="fa-solid fa-arrow-trend-up"></i></div>
+      <span>মোট ডিপোজিট</span><b id="sDep">—</b>
+    </div>
+    <div class="stat danger">
+      <div class="ico"><i class="fa-solid fa-bolt"></i></div>
+      <span>২৪ঘ অ্যাক্টিভ</span><b id="sActive">—</b>
+    </div>
+    <div class="stat info">
+      <div class="ico"><i class="fa-solid fa-plane"></i></div>
+      <span>লাইভ রাউন্ড</span><b id="sLive">—</b>
+    </div>
+    <div class="stat warn">
+      <div class="ico"><i class="fa-solid fa-hourglass-half"></i></div>
+      <span>পেন্ডিং ডিপোজিট</span><b id="sPending">—</b>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="on" data-tab="users"><i class="fa-solid fa-users"></i> ইউজার</button>
+    <button data-tab="balance"><i class="fa-solid fa-money-bill-wave"></i> ব্যালেন্স</button>
+    <button data-tab="deposits"><i class="fa-solid fa-receipt"></i> ডিপোজিট</button>
+    <button data-tab="settings"><i class="fa-solid fa-sliders"></i> সেটিংস</button>
+    <button data-tab="messages"><i class="fa-solid fa-envelope"></i> মেসেজ</button>
+    <button data-tab="setup"><i class="fa-solid fa-screwdriver-wrench"></i> সেটআপ</button>
+  </div>
+
+  <div class="panel on" id="p-users">
+    <h3><i class="fa-solid fa-users"></i> সব ইউজার</h3>
+    <div class="search-bar">
+      <input type="search" id="search" placeholder="🔍 Player ID দিয়ে খুঁজুন...">
+      <button class="btn gray sm" id="refreshBtn"><i class="fa-solid fa-rotate"></i></button>
+    </div>
+    <div class="create-bar">
+      <input type="text" id="cPid" placeholder="নতুন Player ID" autocomplete="off">
+      <input type="number" id="cBal" placeholder="প্রাথমিক ব্যালেন্স ৳" inputmode="numeric" min="0">
+      <button class="btn" id="createUserBtn"><i class="fa-solid fa-user-plus"></i> তৈরি</button>
+    </div>
+    <div class="msg" id="cMsg" style="margin-top:0"></div>
+    <div id="userListWrap">
+      <div class="loading-row"><div class="spinner"></div> ডেটা লোড হচ্ছে...</div>
+    </div>
+  </div>
+
+  <div class="panel" id="p-balance">
+    <h3><i class="fa-solid fa-money-bill-wave"></i> ব্যালেন্স অ্যাড/কমানো</h3>
+    <label>Player ID</label>
+    <input type="text" id="aPid" placeholder="12345678" inputmode="numeric" autocomplete="off">
+    <div class="bal-preview" id="balPreview"></div>
+    <label>পরিমাণ (৳) — ঋণাত্মক দিলে কমবে</label>
+    <input type="number" id="aAmt" placeholder="500" inputmode="decimal">
+    <div class="quick-row">
+      <button data-amt="100"><i class="fa-solid fa-plus"></i> 100</button>
+      <button data-amt="500"><i class="fa-solid fa-plus"></i> 500</button>
+      <button data-amt="1000"><i class="fa-solid fa-plus"></i> 1,000</button>
+      <button data-amt="5000"><i class="fa-solid fa-plus"></i> 5,000</button>
+      <button data-amt="-100" class="neg"><i class="fa-solid fa-minus"></i> 100</button>
+      <button data-amt="-500" class="neg"><i class="fa-solid fa-minus"></i> 500</button>
+    </div>
+    <button class="btn full" id="applyBal"><i class="fa-solid fa-check"></i> প্রয়োগ করুন</button>
+    <div class="msg" id="aMsg"></div>
+    <div class="hint" style="margin-top:14px">প্রতিটি লেখায় <code>pid</code> + <code>balance</code> ফিল্ড পাঠানো হয় — এটাই আপনার rules (<code>newData.child('pid').val() === $pid</code>, <code>hasChildren(['balance'])</code>, <code>balance >= 0</code>) মেনে চলার নিশ্চয়তা। বেশি minus দিলে balance ০-তে clamp হয়।</div>
+  </div>
+
+  <div class="panel" id="p-deposits">
+    <h3><i class="fa-solid fa-receipt"></i> ডিপোজিট রিকোয়েস্ট <button class="btn gray sm" id="depReload" style="margin-left:auto"><i class="fa-solid fa-rotate"></i> রিলোড</button></h3>
+    <div class="hint" id="depStatus"></div>
+    <div id="depList"></div>
+  </div>
+
+  <div class="panel" id="p-settings">
+    <h3><i class="fa-solid fa-sliders"></i> সেটিংস <span class="badge warn hidden" id="dirtyBadge">অসেভড পরিবর্তন</span></h3>
+
+    <div class="remote-bar" id="remoteBar">
+      <span><i class="fa-solid fa-cloud-arrow-down"></i> RTDB-তে নতুন সেটিংস এসেছে — আপনার লোকাল এডিট আছে</span>
+      <button class="btn sm warnb" id="remoteRefresh"><i class="fa-solid fa-rotate"></i> রিমোট ভার্সন লোড</button>
+    </div>
+
+    <!-- General -->
+    <div class="card2">
+      <h4 style="font-size:14px;margin-bottom:12px"><i class="fa-solid fa-globe" style="color:var(--info)"></i> সাধারণ (Aviator ওভারলে)</h4>
+      <div class="grid2">
+        <div>
+          <label>সিস্টেম স্ট্যাটাস</label>
+          <select id="sStatus"><option value="true">✅ চালু</option><option value="false">❌ বন্ধ</option></select>
+        </div>
+        <div>
+          <label>ডেমো ব্যালেন্স</label>
+          <input type="number" id="sDemo" placeholder="5000" inputmode="numeric">
+        </div>
+      </div>
+      <label>Player Logos (প্রতি লাইনে একটা URL)</label>
+      <textarea id="sPlayerLogos" placeholder="https://example.com/logo1.png&#10;https://example.com/logo2.png"></textarea>
+      <label>Plane Logos (প্রতি লাইনে একটা URL)</label>
+      <textarea id="sPlaneLogos" placeholder="https://example.com/plane1.png&#10;https://example.com/plane2.png"></textarea>
+      <div class="grid2">
+        <div>
+          <label>Aviator URL (অ্যাডভান্সড)</label>
+          <input type="url" id="sAviatorUrl" placeholder="https://meek-blini-39d40d.netlify.app/">
+        </div>
+        <div>
+          <label>Theme (data-rx-theme, ফাঁকা = ডিফল্ট)</label>
+          <input type="text" id="sDesign" placeholder="">
+        </div>
+      </div>
+    </div>
+
+    <!-- Nagad -->
+    <div class="card2">
+      <div class="gw-head">
+        <div class="gw-logo-prev" id="gw_nagad_logoprev"><i class="fa-solid fa-image"></i></div>
+        <div class="grow">
+          <h4>নগদ (Nagad) <span class="badge info" id="gw_nagad_badge">অফ</span></h4>
+          <span style="font-size:11px;color:var(--muted)" id="gw_nagad_count"></span>
+        </div>
+        <label class="switch" style="margin:0"><input type="checkbox" id="gw_nagad_enabled" checked><span class="sl"></span></label>
+      </div>
+      <label>গেটওয়ে URL</label>
+      <input type="url" id="gw_nagad_url" placeholder="https://nagad-paybd.netlify.app/">
+      <label>ওয়ালেট লোগো URL</label>
+      <input type="url" id="gw_nagad_logo" placeholder="https://.../nagad-logo.png">
+      <label>ডিপোজিট ইন্সট্রাকশন (ইউজারকে দেখানো হবে)</label>
+      <textarea id="gw_nagad_instr" placeholder="১) নিচের নম্বরে Send Money করুন..."></textarea>
+      <div class="grid2">
+        <div>
+          <label>নম্বর সিলেকশন মোড</label>
+          <select id="gw_nagad_pick">
+            <option value="random">🎲 Random (প্রতিবার এলোমেলো)</option>
+            <option value="round_robin">🔄 Round Robin (পর্যায়ক্রমে)</option>
+            <option value="fixed">📌 Fixed (সবসময় active number)</option>
+          </select>
+        </div>
+        <div class="fixed-row" id="gw_nagad_fixedrow">
+          <label>Active Number (Fixed মোড)</label>
+          <select id="gw_nagad_active"></select>
+        </div>
+      </div>
+      <label>রিসিভার নম্বর (৩–৫টি recommended, সর্বোচ্চ ৫)</label>
+      <div id="gw_nagad_numbers"></div>
+      <div class="num-count" id="gw_nagad_numcount"></div>
+      <button class="btn gray sm" id="gw_nagad_add"><i class="fa-solid fa-plus"></i> নম্বর যোগ করুন</button>
+    </div>
+
+    <!-- bKash -->
+    <div class="card2">
+      <div class="gw-head">
+        <div class="gw-logo-prev" id="gw_bkash_logoprev"><i class="fa-solid fa-image"></i></div>
+        <div class="grow">
+          <h4>বিকাশ (bKash) <span class="badge info" id="gw_bkash_badge">অফ</span></h4>
+          <span style="font-size:11px;color:var(--muted)" id="gw_bkash_count"></span>
+        </div>
+        <label class="switch" style="margin:0"><input type="checkbox" id="gw_bkash_enabled" checked><span class="sl"></span></label>
+      </div>
+      <label>গেটওয়ে URL</label>
+      <input type="url" id="gw_bkash_url" placeholder="https://bkash-paybd.netlify.app/">
+      <label>ওয়ালেট লোগো URL</label>
+      <input type="url" id="gw_bkash_logo" placeholder="https://.../bkash-logo.png">
+      <label>ডিপোজিট ইন্সট্রাকশন (ইউজারকে দেখানো হবে)</label>
+      <textarea id="gw_bkash_instr" placeholder="১) নিচের নম্বরে Send Money করুন..."></textarea>
+      <div class="grid2">
+        <div>
+          <label>নম্বর সিলেকশন মোড</label>
+          <select id="gw_bkash_pick">
+            <option value="random">🎲 Random (প্রতিবার এলোমেলো)</option>
+            <option value="round_robin">🔄 Round Robin (পর্যায়ক্রমে)</option>
+            <option value="fixed">📌 Fixed (সবসময় active number)</option>
+          </select>
+        </div>
+        <div class="fixed-row" id="gw_bkash_fixedrow">
+          <label>Active Number (Fixed মোড)</label>
+          <select id="gw_bkash_active"></select>
+        </div>
+      </div>
+      <label>রিসিভার নম্বর (৩–৫টি recommended, সর্বোচ্চ ৫)</label>
+      <div id="gw_bkash_numbers"></div>
+      <div class="num-count" id="gw_bkash_numcount"></div>
+      <button class="btn gray sm" id="gw_bkash_add"><i class="fa-solid fa-plus"></i> নম্বর যোগ করুন</button>
+    </div>
+
+    <!-- Backend -->
+    <div class="card2">
+      <h4 style="font-size:14px;margin-bottom:10px"><i class="fa-solid fa-cloud" style="color:var(--info)"></i> Backend Function (সেটিংস সেভের একমাত্র সঠিক পথ)</h4>
+      <div class="hint" style="margin-bottom:10px">আপনার rules-এ <code>settings</code> নোডে <code>".write": false</code> — তাই ব্রাউজার থেকে সরাসরি সেভ <b>সম্ভব নয়</b>। Function URL দিলে সেভ ওখানে যাবে; না দিলে সরাসরি চেষ্টা করে <b>সত্যিকারের error</b> দেখানো হবে (ভুয়া success নেই)। সেটআপ: <b>সেটআপ ট্যাব</b>।</div>
+      <div class="fn-row">
+        <input type="url" id="fnUrl" placeholder="https://us-central1-nagad-17cbb.cloudfunctions.net/rxAdmin">
+        <button class="btn gray sm" id="testFnBtn"><i class="fa-solid fa-plug"></i> Test</button>
+        <button class="icon-btn del" id="clearFnBtn" title="URL মুছুন"><i class="fa-solid fa-eraser"></i></button>
+      </div>
+      <div class="msg" id="fnMsg"></div>
+    </div>
+
+    <div class="save-bar">
+      <button class="btn" id="saveSettings"><i class="fa-solid fa-floppy-disk"></i> সেভ করুন</button>
+      <button class="btn gray" id="exportBtn"><i class="fa-solid fa-file-export"></i> Export</button>
+      <button class="btn gray" id="importBtn"><i class="fa-solid fa-file-import"></i> Import</button>
+      <input type="file" id="importFile" accept=".json,application/json" class="hidden">
+    </div>
+    <div class="msg" id="sMsg"></div>
+  </div>
+
+  <div class="panel" id="p-messages">
+    <h3><i class="fa-solid fa-envelope"></i> মেসেজ <span class="badge dim">read-only</span></h3>
+    <div class="hint">rules অনুযায়ী <code>/messages</code> সবাই পড়তে পারে কিন্তু ক্লায়েন্ট লিখতে পারে না (<code>.write:false</code>)। পাঠানো/রিপ্লাই চাইলে backend Function লাগবে।</div>
+    <div id="msgList"><div class="loading-row"><div class="spinner"></div> লোড হচ্ছে...</div></div>
+  </div>
+
+  <div class="panel" id="p-setup">
+    <h3><i class="fa-solid fa-screwdriver-wrench"></i> সেটআপ ও ডকুমেন্টেশন</h3>
+
+    <div class="section">
+      <h4 style="font-size:14px;margin-bottom:10px"><i class="fa-solid fa-lock" style="color:var(--warn)"></i> ১. কেন সেটিংস সরাসরি সেভ হয় না</h4>
+      <div class="hint">আপনার নিয়ম অপরিবর্তিত রাখা হয়েছে। <code>/settings</code>-এ <code>".write": false</code> থাকায় কোনো ব্রাউজার কোড সেটিংস লিখতে পারে না — এটাই সঠিক আচরণ। প্যানেল কখনো ভুয়া success দেখাবে না; rules বাধা দিলে সৎ error দেখাবে।</div>
+      <pre class="code"><button class="btn gray sm copy-btn" data-copy="codeRules"><i class="fa-solid fa-copy"></i></button><code id="codeRules"></code></pre>
+    </div>
+
+    <div class="section">
+      <h4 style="font-size:14px;margin-bottom:10px"><i class="fa-solid fa-cloud" style="color:var(--info)"></i> ২. একবারের সেটআপ — Cloud Function (Admin SDK server-এ থাকে)</h4>
+      <div class="hint">Admin SDK <b>শুধু সার্ভারে</b> চলে (Cloud Function) — ক্লায়েন্ট HTML-এ কখনো রাখা হয় না। Function নিজের key দিয়ে অনুরোধ যাচাই করে, তারপর rules বাইপাস করে সেটিংস লেখে (Admin SDK rules মানে না — এটাই এর কাজ)। আপনার Firebase rules এক বিন্দুও বদলাতে হবে না।</div>
+      <ol class="steps">
+        <li>Node.js 20+ ও <code>npm install -g firebase-tools</code></li>
+        <li><code>firebase login</code></li>
+        <li><code>firebase use nagad-17cbb</code></li>
+        <li><code>firebase init functions</code> → existing project <b>nagad-17cbb</b> → JavaScript</li>
+        <li>নিচের কোড <code>functions/index.js</code> ও <code>functions/package.json</code>-এ বসান</li>
+        <li><code>firebase deploy --only functions</code> → console-এ URL পাবেন</li>
+        <li>URL বসান <b>সেটিংস ট্যাব → Backend Function</b> ঘরে → <b>Test</b> → ✅ হলে সেভ কাজ করবে</li>
+        <li>(ঐচ্ছিক, নিরাপদ) <code>functions/.env</code> ফাইলে <code>ADMIN_KEY=আপনার_নতুন_কী</code> দিন, আবার deploy করুন</li>
+      </ol>
+      <pre class="code"><button class="btn gray sm copy-btn" data-copy="codeFn"><i class="fa-solid fa-copy"></i></button><code id="codeFn"></code></pre>
+      <div class="grid2">
+        <pre class="code"><button class="btn gray sm copy-btn" data-copy="codePkg"><i class="fa-solid fa-copy"></i></button><code id="codePkg"></code></pre>
+        <pre class="code"><button class="btn gray sm copy-btn" data-copy="codeDeploy"><i class="fa-solid fa-copy"></i></button><code id="codeDeploy"></code></pre>
+      </div>
+      <div class="hint"><b>দাবিত্যাগ:</b> Cloud Functions-এর জন্য Blaze (pay-as-you-go) প্ল্যান লাগে; নিচের checklist নিজে চালিয়ে নিন — এই প্যানেল আপনার প্রজেক্টের বিরুদ্ধে live টেস্ট করা হয়নি।</div>
+    </div>
+
+    <div class="section">
+      <h4 style="font-size:14px;margin-bottom:10px"><i class="fa-solid fa-diagram-project" style="color:var(--info)"></i> ৩. শেয়ার্ড সেটিংস স্কিমা (admin ↔ extension ↔ gateways)</h4>
+      <div class="hint">সবাই <code>settings/global</code> পড়ে। Extension এখনই dynamic: <code>bkash_url</code>/<code>nagad_url</code>/<code>aviator_url</code>/<code>demo_balance</code>/<code>status</code>/<code>player_logos</code>/<code>plane_logos</code>/<code>design</code> — SSE + ৩০সে পোলে। প্যানেল প্রতি সেভে <code>gateways.&lt;method&gt;.url</code>-কে legacy flat key-তেও মিরর করে, তাই extension-এ কোনো এডিট লাগে না। Gateway pages নিচের contract মেনে নম্বর/ইন্সট্রাকশন পড়বে।</div>
+      <pre class="code"><button class="btn gray sm copy-btn" data-copy="codeSchema"><i class="fa-solid fa-copy"></i></button><code id="codeSchema"></code></pre>
+      <h4 style="font-size:13px;margin:14px 0 8px">Extension-এ nested gateway URL-ও চাইলে (ঐচ্ছিক ছোট patch)</h4>
+      <pre class="code"><button class="btn gray sm copy-btn" data-copy="codePatch"><i class="fa-solid fa-copy"></i></button><code id="codePatch"></code></pre>
+    </div>
+
+    <div class="section">
+      <h4 style="font-size:14px;margin-bottom:10px"><i class="fa-solid fa-user-shield" style="color:var(--danger)"></i> ৪. সিকিউরিটি নোট</h4>
+      <ul class="bullets">
+        <li>Service-account JSON / Admin SDK secret কখনো এই HTML-এ রাখবেন না — সবসময় Cloud Function-এ।</li>
+        <li>Function URL শুধু আপনার ব্রাউজারের localStorage-এ থাকে; ফাইলে বা RTDB-তে সেভ হয় না।</li>
+        <li>Function-এর আসল gate হলো <code>x-admin-key</code> হেডার (server-side check)। <code>SIAMVIP</code> ডিফল্ট — deploy-এর আগে বদলানো ভালো।</li>
+        <li>ব্রাউজারের key gate (SIAMVIP) শুধু UI — উৎস দেখলে দেখা যায়। প্যানেলটি unguessable URL-এ host করুন।</li>
+        <li>প্রোডাকশনে function-এর CORS আপনার প্যানেলের origin-এ সীমাবদ্ধ করুন (index.js-এ TODO দেখানো আছে)।</li>
+        <li>Firebase rules <b>অপরিবর্তিত</b>: users-এ pid+balance লেখা হয়, transactions-এ লেখা হয় শুধু flat pending হিসেবে, settings/messages-এ ক্লায়েন্ট লেখে না।</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h4 style="font-size:14px;margin-bottom:10px"><i class="fa-solid fa-list-check" style="color:var(--primary)"></i> ৫. টেস্ট চেকলিস্ট (নিজে চালান)</h4>
+      <div class="ck-progress"><i class="fa-solid fa-circle-check"></i> সম্পন্ন: <b id="ckDone">0</b>/<b id="ckTotal">0</b></div>
+      <div id="checklistWrap"></div>
+    </div>
+
+    <div class="section">
+      <h4 style="font-size:14px;margin-bottom:10px"><i class="fa-solid fa-triangle-exclamation" style="color:var(--warn)"></i> ৬. ট্রাবলশুটিং</h4>
+      <ul class="bullets">
+        <li><b>ডেটা লোড হয় না / apiKey error:</b> Firebase Console → Project settings → Web API Key-এর সাথে config-এর <code>apiKey</code> মিলিয়ে নিন; Realtime Database region/URL দেখুন।</li>
+        <li><b>Function Test fail (CORS/401):</b> deploy URL ঠিক আছে কি না দেখুন; key হেডার প্যানেল নিজেই পাঠায় — 401 হলে function-এর ADMIN_KEY আলাদা।</li>
+        <li><b>Permission denied (settings সেভ):</b> প্রত্যাশিত — Function URL ছাড়া সেভ সম্ভব নয় (rules write:false)।</li>
+        <li><b>নম্বর সেভ হয় না:</b> ফরম্যাট ০১XXXXXXXXX (+880/স্পেস অটো-নরমাল হয়), সর্বোচ্চ ৫টি।</li>
+      </ul>
+    </div>
+  </div>
+  <nav class="bottom-nav">
+    <button class="on" data-tab="users"><i class="fa-solid fa-users"></i><span>ইউজার</span></button>
+    <button data-tab="balance"><i class="fa-solid fa-money-bill-wave"></i><span>ব্যালেন্স</span></button>
+    <button data-tab="deposits"><i class="fa-solid fa-receipt"></i><span>ডিপোজিট</span></button>
+    <button data-tab="settings"><i class="fa-solid fa-sliders"></i><span>সেটিংস</span></button>
+    <button data-tab="messages"><i class="fa-solid fa-envelope"></i><span>মেসেজ</span></button>
+    <button data-tab="setup"><i class="fa-solid fa-screwdriver-wrench"></i><span>সেটআপ</span></button>
+  </nav>
+</div>
+
+<!-- User Detail Modal -->
+<div class="user-modal" id="userModal">
+  <div class="user-modal-inner">
+    <div class="grabber"></div>
+    <h3 id="modalTitle">ইউজার ডিটেইল</h3>
+    <div id="modalBody"></div>
+    <button class="btn full gray" style="margin-top:14px" id="modalClose"><i class="fa-solid fa-times"></i> বন্ধ</button>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="confirm-modal" id="confirmModal">
+  <div class="confirm-inner">
+    <div class="grabber"></div>
+    <h3 id="confirmTitle">নিশ্চিত?</h3>
+    <div id="confirmBody" class="hint"></div>
+    <div id="confirmInputWrap" class="hidden">
+      <label id="confirmInputLabel">মান</label>
+      <input type="text" id="confirmInput" autocomplete="off">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px">
+      <button class="btn gray" id="confirmCancel"><i class="fa-solid fa-times"></i> বাতিল</button>
+      <button class="btn danger" id="confirmOk"><i class="fa-solid fa-check"></i> নিশ্চিত</button>
+    </div>
+  </div>
+</div>
+
+<!-- Approve Deposit Modal -->
+<div class="confirm-modal" id="approveModal">
+  <div class="confirm-inner">
+    <div class="grabber"></div>
+    <h3 id="approveTitle">ডিপোজিট অ্যাপ্রুভ</h3>
+    <div id="approveInfo" class="hint"></div>
+    <label>User PID (tx-এর wallet/pid থেকে, দরকারে ঠিক করুন)</label>
+    <input type="text" id="approvePid" autocomplete="off">
+    <label>পরিমাণ (৳)</label>
+    <input type="number" id="approveAmt" inputmode="decimal" min="1">
+    <div class="msg" id="approveMsg"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+      <button class="btn gray" id="approveCancel"><i class="fa-solid fa-times"></i> বাতিল</button>
+      <button class="btn" id="approveOk"><i class="fa-solid fa-check"></i> অ্যাপ্রুভ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"><i class="fa-solid fa-circle-check" id="toastIco"></i><span id="toastText"></span></div>
+
+<!-- ═══════ TEXT TEMPLATES (raw, JS fills the code slots) ═══════ -->
+<script type="text/plain" id="tplRules">{
+  "rules": {
+    "users": {
+      "$pid": {
+        ".read": true,
+        ".write": "!data.exists() || (newData.child('pid').val() === $pid)",
+        ".validate": "newData.hasChildren(['balance'])",
+        "balance": { ".validate": "newData.isNumber() && newData.val() >= 0" }
+      }
+    },
+    "transactions": {
+      ".read": false,
+      "$txId": {
+        ".write": "newData.hasChildren(['trxId','wallet','method','timestamp','status']) && newData.child('status').val() === 'pending' && !data.exists()",
+        ".validate": "newData.child('trxId').isString() && newData.child('trxId').val().length >= 4"
+      }
+    },
+    "settings": { ".read": true, ".write": false },
+    "live": { ".read": true, ".write": true },
+    "messages": { ".read": true, ".write": false }
+  }
+}</script>
+<script type="text/plain" id="tplFn">// functions/index.js — RX Admin backend (একবারের সেটআপ, nagad-17cbb)
+// Node 20 + firebase-functions v2। Admin SDK শুধু এখানে — ক্লায়েন্টে কখনো নয়।
+const { onRequest } = require("firebase-functions/v2/https");
+const logger = require("firebase-functions/logger");
+const corsLib = require("cors");
+const admin = require("firebase-admin");
+
+admin.initializeApp();
+const db = admin.database();
+
+// Key server-side যাচাই হয়। ডিফল্ট SIAMVIP; functions/.env-এ ADMIN_KEY=... দিলে সেটাই চলবে।
+const ADMIN_KEY = process.env.ADMIN_KEY || "SIAMVIP";
+// TODO (প্রোডাকশন): origin: true এর জায়গায় আপনার প্যানেলের URL দিন, যেমন:
+// const cors = corsLib({ origin: "https://your-panel.example.com" });
+const cors = corsLib({ origin: true });
+
+const ok  = (res, data) => res.json(Object.assign({ ok: true }, data || {}));
+const fail = (res, code, msg) => res.status(code).json({ ok: false, error: msg });
+
+function guard(req, res) {
+  const key = req.get("x-admin-key") || (req.body && req.body.key);
+  if (!key || key !== ADMIN_KEY) { fail(res, 401, "Unauthorized: invalid admin key"); return false; }
+  return true;
+}
+
+function normBD(raw) {
+  const s = String((raw == null ? "" : raw)).replace(/[\s\-()]/g, "");
+  const n = /^(\+?880)/.test(s) ? "0" + s.replace(/^\+?880/, "") : s;
+  return /^01[3-9]\d{8}$/.test(n) ? n : null;
+}
+function sanitizeNumber(n) {
+  const num = normBD(n && n.number);
+  if (!num) return null;
+  return { id: String(n.id || "n" + Date.now()), label: String(n.label || "").slice(0, 40), number: num, active: n.active !== false };
+}
+const isHttpUrl = (u) => typeof u === "string" && /^https:\/\//.test(u);
+
+function sanitizeSettings(s) {
+  if (!s || typeof s !== "object") return null;
+  const out = {};
+  out.status = s.status !== false;
+  out.demo_balance = Math.max(0, Math.round(Number(s.demo_balance) || 0));
+  out.player_logos = Array.isArray(s.player_logos) ? s.player_logos.filter(isHttpUrl).slice(0, 50) : [];
+  out.plane_logos  = Array.isArray(s.plane_logos)  ? s.plane_logos.filter(isHttpUrl).slice(0, 50)  : [];
+  out.design = typeof s.design === "string" ? s.design.slice(0, 30) : "";
+  out.aviator_url = isHttpUrl(s.aviator_url) ? s.aviator_url : "https://meek-blini-39d40d.netlify.app/";
+  const gw = {};
+  for (const m of ["bkash", "nagad"]) {
+    const g = (s.gateways && s.gateways[m]) || {};
+    const def = m === "bkash" ? "https://bkash-paybd.netlify.app/" : "https://nagad-paybd.netlify.app/";
+    const numbers = Array.isArray(g.numbers) ? g.numbers.map(sanitizeNumber).filter(Boolean).slice(0, 5) : [];
+    gw[m] = {
+      enabled: g.enabled !== false,
+      url: isHttpUrl(g.url) ? g.url : def,
+      logo_url: isHttpUrl(g.logo_url) ? g.logo_url : "",
+      instructions: typeof g.instructions === "string" ? g.instructions.slice(0, 2000) : "",
+      pick_mode: ["random", "round_robin", "fixed"].includes(g.pick_mode) ? g.pick_mode : "random",
+      active_number: typeof g.active_number === "string" ? g.active_number : "",
+      numbers
+    };
+  }
+  out.gateways = gw;
+  out.bkash_url = gw.bkash.url;   // legacy mirror — extension এগুলোই পড়ে
+  out.nagad_url = gw.nagad.url;
+  out.updatedAt = Date.now();
+  return out;
+}
+
+exports.rxAdmin = onRequest({ region: "us-central1" }, (req, res) => {
+  cors(req, res, async () => {
+    try {
+      if (req.method !== "POST") return fail(res, 405, "POST only");
+      if (!guard(req, res)) return;
+      const b = req.body || {};
+      const action = b.action;
+
+      if (action === "ping") return ok(res, { project: process.env.GCLOUD_PROJECT, time: Date.now() });
+
+      if (action === "settings.save") {
+        const clean = sanitizeSettings(b.settings);
+        if (!clean) return fail(res, 400, "Invalid settings payload");
+        await db.ref("settings/global").update(clean);
+        logger.info("settings.saved");
+        return ok(res, { saved: true, updatedAt: clean.updatedAt });
+      }
+
+      if (action === "deposits.list") {
+        const snap = await db.ref("transactions").get();
+        const val = snap.val() || {};
+        const want = b.status || "pending";
+        const list = Object.entries(val)
+          .map(([txId, t]) => Object.assign({ txId }, t))
+          .filter(t => (t.status || "") === want)
+          .sort((a, b2) => (b2.timestamp || 0) - (a.timestamp || 0))
+          .slice(0, 200);
+        return ok(res, { deposits: list });
+      }
+
+      if (action === "deposits.approve") {
+        const txId = String(b.txId || "");
+        if (!txId) return fail(res, 400, "txId required");
+        const tref = db.ref("transactions/" + txId);
+        const tx = (await tref.get()).val();
+        if (!tx) return fail(res, 404, "Transaction not found");
+        if (tx.status !== "pending") return fail(res, 409, "Already processed: " + tx.status);
+        const pid = String(b.pid || tx.pid || tx.wallet || "").trim();
+        const amt = Math.round(Number(b.amount != null ? b.amount : tx.amount));
+        if (!/^[A-Za-z0-9_-]{3,24}$/.test(pid)) return fail(res, 400, "tx থেকে user pid বোঝা যায়নি (wallet=" + tx.wallet + ") — pid দিন");
+        if (!isFinite(amt) || amt <= 0) return fail(res, 400, "Invalid amount");
+        const balRef = db.ref("users/" + pid + "/balance");
+        const r = await balRef.transaction(cur => (Number(cur) || 0) + amt);
+        if (!r.committed) return fail(res, 500, "Balance transaction failed");
+        const userRef = db.ref("users/" + pid);
+        await userRef.transaction(cur => {
+          if (!cur) return cur;
+          cur.lastAdjusted = Date.now();
+          cur.total_deposit = Math.max(0, (Number(cur.total_deposit) || 0) + amt);
+          return cur;
+        });
+        await tref.update({ status: "approved", approvedAt: Date.now(), creditedPid: pid, creditedAmount: amt });
+        return ok(res, { txId, pid, amount: amt, newBalance: r.snapshot.val() });
+      }
+
+      if (action === "deposits.reject") {
+        const txId = String(b.txId || "");
+        if (!txId) return fail(res, 400, "txId required");
+        const tref = db.ref("transactions/" + txId);
+        const tx = (await tref.get()).val();
+        if (!tx) return fail(res, 404, "Transaction not found");
+        if (tx.status !== "pending") return fail(res, 409, "Already processed: " + tx.status);
+        await tref.update({ status: "rejected", rejectedAt: Date.now(), reason: String(b.reason || "").slice(0, 300) });
+        return ok(res, { txId, status: "rejected" });
+      }
+
+      if (action === "users.delete") {
+        const pid = String(b.pid || "").trim();
+        if (!/^[A-Za-z0-9_-]{3,24}$/.test(pid)) return fail(res, 400, "Invalid pid");
+        await db.ref("users/" + pid).remove();
+        return ok(res, { deleted: pid });
+      }
+
+      if (action === "users.setBalance") {
+        const pid = String(b.pid || "").trim();
+        const amt = Math.round(Number(b.amount));
+        if (!/^[A-Za-z0-9_-]{3,24}$/.test(pid)) return fail(res, 400, "Invalid pid");
+        if (!isFinite(amt) || amt < 0) return fail(res, 400, "Invalid amount");
+        await db.ref("users/" + pid).update({ pid, balance: amt, lastAdjusted: Date.now() });
+        return ok(res, { pid, balance: amt });
+      }
+
+      return fail(res, 400, "Unknown action: " + action);
+    } catch (e) {
+      logger.error(e);
+      return fail(res, 500, (e && e.message) || "Server error");
+    }
+  });
+});</script>
+<script type="text/plain" id="tplPkg">{
+  "name": "rx-admin-functions",
+  "engines": { "node": "20" },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^12.1.0",
+    "firebase-functions": "^5.0.0",
+    "cors": "^2.8.5"
+  }
+}</script>
+<script type="text/plain" id="tplDeploy"># একবারের ডিপ্লয় (প্রজেক্ট: nagad-17cbb)
+npm install -g firebase-tools
+firebase login
+firebase use nagad-17cbb
+firebase init functions      # existing project → nagad-17cbb → JavaScript
+#   → functions/index.js  : উপরের কোড
+#   → functions/package.json : পাশের কোড
+firebase deploy --only functions
+# আউটপুটে URL: https://us-central1-nagad-17cbb.cloudfunctions.net/rxAdmin
+# ঐ URL → প্যানেল সেটিংস ট্যাব → Backend Function ঘরে বসান → Test
+# (ঐচ্ছিক নতুন key) functions/.env ফাইলে: ADMIN_KEY=আপনার_নতুন_কী , তারপর আবার deploy</script>
+<script type="text/plain" id="tplSchema">// settings/global — শেয়ার্ড স্কিমা (admin panel ↔ extension ↔ gateways)
+{
+  "status": true,                       // সিস্টেম চালু/বন্ধ (extension পড়ে)
+  "demo_balance": 5000,                 // extension ডেমো ব্যালেন্স
+  "player_logos": ["https://..."],      // extension অ্যাভাটার
+  "plane_logos":  ["https://..."],      // extension প্লেন ইমেজ
+  "design": "",                         // data-rx-theme (ঐচ্ছিক)
+  "aviator_url": "https://meek-blini-39d40d.netlify.app/",   // গেম URL (extension dynamic)
+  "bkash_url": "https://bkash-paybd.netlify.app/",  // LEGACY MIRROR — extension এটাই পড়ে (SSE+poll)
+  "nagad_url": "https://nagad-paybd.netlify.app/",  // LEGACY MIRROR
+  "gateways": {
+    "bkash": {
+      "enabled": true,
+      "url": "https://bkash-paybd.netlify.app/",
+      "logo_url": "https://.../bkash.png",
+      "instructions": "১) নম্বরে Send Money করুন...",
+      "pick_mode": "random",            // random | round_robin | fixed
+      "active_number": "",              // fixed মোডে এই number-এর id
+      "numbers": [                      // ৩–৫টি recommended, সর্বোচ্চ ৫
+        { "id": "n1", "label": "Agent 1", "number": "01712345678", "active": true }
+      ]
+    },
+    "nagad": { "…bkash-এর মতোই…" : "" }
+  },
+  "updatedAt": 1730000000000
+}
+
+// Number picking contract (gateway pages / extension):
+// 1) settings/global পড়ো → gateways[method] (onValue বা ৩০সে পোল)
+// 2) URL fallback chain: gateways[m].url → bkash_url/nagad_url → built-in default
+// 3) numbers.filter(n => n.active !== false)
+//    fixed       → id === active_number
+//    random      → Math.random() pick
+//    round_robin → db.ref("live/rr/"+method) counter runTransaction(c => (c||0)+1) % len
+// 4) trx লেখা: transactions/$txId (FLAT!) = { trxId, wallet, method, amount, timestamp, status:"pending" }
+//    (rules: trxId>=4 chars, status must be "pending", নতুন হতে হবে)</script>
+<script type="text/plain" id="tplPatch">// ঐচ্ছিক: SX PRO.js (v2.4.0)-এ nested gateways.<m>.url আগে পড়ার ছোট patch।
+// applyRemoteSettings(s)-এর শুরুতে (line ~1070) যোগ করুন — flat mirror আগেই কাজ করছে,
+// এটা শুধু priority বদলায়:
+if (s.gateways && typeof s.gateways === "object") {
+  ["bkash", "nagad"].forEach(function (m) {
+    var g = s.gateways[m];
+    if (g && typeof g.url === "string" && g.url) {
+      RX_PAY_GATEWAYS[m] = g.url;
+      window.RX_PAY_GATEWAYS[m] = g.url;
+    }
+  });
+}
+// এরপর পুরনো bkash_url/nagad_url লাইনগুলো fallback হিসেবেই থাকবে।</script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getDatabase, ref, onValue, get, set, update, remove
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+/* ═══════════════════════════════════════════════════════════════
+   FIREBASE CONFIG — exact (nagad-17cbb), ইউজার-প্রদত্ত, অপরিবর্তিত
+   ═══════════════════════════════════════════════════════════════ */
+const firebaseConfig = {
+  apiKey: "AIzaSyAUzefLXQPVDu4yjDld0VASWqqs9Mbtn8",
+  authDomain: "nagad-17cbb.firebaseapp.com",
+  databaseURL: "https://nagad-17cbb-default-rtdb.firebaseio.com",
+  projectId: "nagad-17cbb",
+  storageBucket: "nagad-17cbb.firebasestorage.app",
+  messagingSenderId: "728810825239",
+  appId: "1:728810825239:web:5d19ab354464e33e87de52",
+  measurementId: "G-RX4CZ26WT1"
+};
+
+const ADMIN_KEY = "SIAMVIP";
+const KEY_STORAGE = "rx_admin_key_v1";
+const FN_URL_STORAGE = "rx_fn_url_v1";
+const CK_STORAGE = "rx_admin_checklist_v1";
+
+/* Default gateway URLs (প্রয়োজনে settings/global দিয়ে ওভাররাইড হয়) */
+const DEFAULT_GATEWAY_URLS = {
+  nagad: "https://nagad-paybd.netlify.app/",
+  bkash: "https://bkash-paybd.netlify.app/"
+};
+const DEFAULT_AVIATOR_URL = "https://meek-blini-39d40d.netlify.app/";
+const METHODS = ["nagad", "bkash"];
+
+const fbApp = initializeApp(firebaseConfig);
+const db = getDatabase(fbApp);
+
+let USERS = [];
+let userUnsub = null, settingsUnsub = null, liveUnsub = null, msgUnsub = null, connUnsub = null;
+let active = false;
+let SETTINGS = null;          // normalized remote settings
+let DRAFT = null;             // editable draft (deep clone)
+let settingsDirty = false;
+let settingsLoaded = false;
+let MESSAGES = [];
+let LIVE_COUNT = 0;
+let PENDING_COUNT = null;     // null = unknown (fn ছাড়া জানা সম্ভব নয়)
+let FN_URL = "";
+let depProbed = false, depMode = null, DEPOSITS = [];
+
+const $ = id => document.getElementById(id);
+
+/* ═══════════ Helpers ═══════════ */
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+function uid() { return "n" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function round2(n) { return Math.round(Number(n) * 100) / 100; }
+function deepClone(o) { return JSON.parse(JSON.stringify(o)); }
+
+function toast(text, kind = "ok") {
+  const t = $("toast");
+  $("toastText").textContent = text;
+  const ico = $("toastIco");
+  ico.className = "fa-solid " + (kind === "err" ? "fa-circle-exclamation" : kind === "info" ? "fa-circle-info" : "fa-circle-check");
+  t.className = kind;
+  t.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove("show"), 3200);
+}
+
+function showMsg(id, text, kind = "ok") {
+  const el = $(id);
+  el.className = "msg on " + kind;
+  el.innerHTML = `<i class="fa-solid ${kind === "ok" ? "fa-circle-check" : kind === "err" ? "fa-circle-exclamation" : "fa-circle-info"}"></i><span>${text}</span>`;
+  if (kind === "ok") setTimeout(() => { if (el.classList.contains("on")) el.classList.remove("on"); }, 4500);
+}
+
+function fmtMoney(n) {
+  if (typeof n !== "number" || isNaN(n)) return "৳0";
+  return "৳" + n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+}
+
+function timeAgo(ts) {
+  if (!ts) return "—";
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 5) return "এখনই";
+  if (s < 60) return s + "s আগে";
+  if (s < 3600) return Math.floor(s / 60) + "m আগে";
+  if (s < 86400) return Math.floor(s / 3600) + "h আগে";
+  if (s < 604800) return Math.floor(s / 86400) + "d আগে";
+  return new Date(ts).toLocaleDateString("en-GB");
+}
+
+function fmtFull(ts) {
+  if (!ts) return "—";
+  return new Date(ts).toLocaleString("en-GB", { hour12: true });
+}
+
+function friendlyErr(e) {
+  const code = (e && e.code) || "";
+  const msg = (e && e.message) || String(e || "Error");
+  if (code === "permission-denied" || /permission[_ ]denied|Permission denied/i.test(msg)) {
+    return "Permission denied — Firebase rules এই অপারেশনের অনুমতি দিচ্ছে না। কোনো লেখা হয়নি। (সমাধান: সেটআপ ট্যাব)";
+  }
+  return msg;
+}
+
+function isValidUrl(u) {
+  if (!u) return false;
+  try { const x = new URL(u); return x.protocol === "https:"; } catch (e) { return false; }
+}
+
+function normBD(raw) {
+  const s = String(raw == null ? "" : raw).replace(/[\s\-()]/g, "");
+  const n = /^(\+?880)/.test(s) ? "0" + s.replace(/^\+?880/, "") : s;
+  return /^01[3-9]\d{8}$/.test(n) ? n : null;
+}
+
+function isValidPid(p) { return /^[A-Za-z0-9_-]{3,24}$/.test(String(p || "").trim()); }
+
+function copyText(text) {
+  const done = () => toast("কপি হয়েছে", "ok");
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => { fallbackCopy(text); done(); });
+  } else { fallbackCopy(text); done(); }
+}
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand("copy"); } catch (e) {}
+  document.body.removeChild(ta);
+}
+
+function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+/* ═══════════ AUTH (client-side UI gate) ═══════════ */
+function tryStoredKey() {
+  const k = load(KEY_STORAGE);
+  if (k === ADMIN_KEY) { enterApp(); return true; }
+  return false;
+}
+
+function doLogin() {
+  const key = $("adminKey").value.trim();
+  if (!key) return showMsg("loginMsg", "Admin key দিন", "err");
+  if (key === ADMIN_KEY) {
+    store(KEY_STORAGE, key);
+    $("adminKey").value = "";
+    enterApp();
+  } else {
+    showMsg("loginMsg", "ভুল Admin key", "err");
+    const inp = $("adminKey");
+    inp.style.animation = "shake .4s";
+    setTimeout(() => inp.style.animation = "", 450);
+  }
+}
+
+function enterApp() {
+  active = true;
+  $("login").style.display = "none";
+  $("app").style.display = "block";
+  $("whoami").textContent = "RTDB · " + firebaseConfig.projectId;
+  FN_URL = load(FN_URL_STORAGE) || "";
+  $("fnUrl").value = FN_URL;
+  startListeners();
+  if (FN_URL) refreshPending();
+}
+
+function logout() {
+  active = false;
+  try { localStorage.removeItem(KEY_STORAGE); } catch (e) {}
+  [userUnsub, settingsUnsub, liveUnsub, msgUnsub, connUnsub].forEach(u => { if (u) { try { u(); } catch (e) {} } });
+  userUnsub = settingsUnsub = liveUnsub = msgUnsub = connUnsub = null;
+  $("login").style.display = "flex";
+  $("app").style.display = "none";
+  $("adminKey").value = "";
+  settingsLoaded = false; settingsDirty = false; depProbed = false; depMode = null; DEPOSITS = [];
+}
+
+/* ═══════════ TABS ═══════════ */
+function switchTab(name) {
+  const b = document.querySelector(`.tabs button[data-tab="${name}"]`);
+  if (b) { b.click(); return; }
+  activateTab(name);
+}
+function activateTab(name) {
+  document.querySelectorAll(".tabs button, .bottom-nav button").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
+  document.querySelectorAll(".panel").forEach(p => p.classList.remove("on"));
+  const panel = $("p-" + name);
+  if (panel) panel.classList.add("on");
+  if (name === "deposits") probeDeposits();
+  if (name === "setup") { fillSetupTemplates(); renderChecklist(); }
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+/* ═══════════ REALTIME LISTENERS ═══════════ */
+function startListeners() {
+  if (userUnsub) return;
+
+  userUnsub = onValue(ref(db, "users"), snap => {
+    const data = snap.val() || {};
+    USERS = Object.entries(data).map(([pid, u]) => ({
+      pid,
+      balance: Number(u?.balance) || 0,
+      total_deposit: Number(u?.total_deposit) || 0,
+      lastSeen: u?.lastSeen || 0,
+      createdAt: u?.createdAt || 0,
+      lastAdjusted: u?.lastAdjusted || 0,
+      status: u?.status || "active",
+      blockedReason: u?.blockedReason || ""
+    }));
+    USERS.sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
+    renderUsers();
+    renderStats();
+  }, err => {
+    $("userListWrap").innerHTML = `<div class="empty"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger)"></i><p>RTDB পড়া যাচ্ছে না: ${esc(err.message)}</p><p style="font-size:11px">Firebase Console-এ Web API Key ও Database URL মিলিয়ে নিন (সেটআপ ট্যাব → ট্রাবলশুটিং)</p></div>`;
+  });
+
+  settingsUnsub = onValue(ref(db, "settings/global"), snap => {
+    SETTINGS = normalizeSettings(snap.val());
+    if (!settingsLoaded) {
+      settingsLoaded = true;
+      DRAFT = deepClone(SETTINGS);
+      renderSettingsForms();
+    } else if (settingsDirty) {
+      $("remoteBar").classList.add("on");
+    } else {
+      DRAFT = deepClone(SETTINGS);
+      renderSettingsForms();
+    }
+    renderStats();
+  }, err => {
+    showMsg("sMsg", "সেটিংস পড়া যাচ্ছে না: " + esc(err.message), "err");
+  });
+
+  liveUnsub = onValue(ref(db, "live/rounds"), snap => {
+    LIVE_COUNT = snap.exists() ? Object.keys(snap.val()).length : 0;
+    renderStats();
+  }, () => { LIVE_COUNT = 0; });
+
+  msgUnsub = onValue(ref(db, "messages"), snap => {
+    const val = snap.val() || {};
+    MESSAGES = Object.entries(val).map(([k, m]) => Object.assign({ _k: k }, typeof m === "object" && m ? m : { text: String(m) }));
+    MESSAGES.sort((a, b) => (b.timestamp || b.ts || 0) - (a.timestamp || a.ts || 0));
+    renderMessages();
+  }, () => { MESSAGES = []; renderMessages(); });
+
+  connUnsub = onValue(ref(db, ".info/connected"), snap => {
+    $("connDot").classList.toggle("off", !snap.val());
+  });
+}
+
+/* ═══════════ STATS ═══════════ */
+function renderStats() {
+  $("sUsers").textContent = USERS.length;
+  const totBal = USERS.reduce((s, u) => s + (u.balance || 0), 0);
+  const totDep = USERS.reduce((s, u) => s + (u.total_deposit || 0), 0);
+  const dayAgo = Date.now() - 86400000;
+  const activeNow = USERS.filter(u => u.lastSeen > dayAgo).length;
+  $("sBal").textContent = fmtMoney(totBal);
+  $("sDep").textContent = fmtMoney(totDep);
+  $("sActive").textContent = activeNow;
+  $("sLive").textContent = LIVE_COUNT || "0";
+  $("sPending").textContent = PENDING_COUNT == null ? "—" : PENDING_COUNT;
+  const badge = $("sysBadge");
+  if (SETTINGS) {
+    badge.textContent = SETTINGS.status ? "চালু" : "বন্ধ";
+    badge.className = "badge " + (SETTINGS.status ? "ok" : "off");
+  }
+}
+
+/* ═══════════ USERS ═══════════ */
+function renderUsers() {
+  const q = $("search").value.trim().toLowerCase();
+  const list = q ? USERS.filter(u => u.pid.toLowerCase().includes(q)) : USERS;
+  const wrap = $("userListWrap");
+
+  if (!USERS.length) {
+    wrap.innerHTML = `<div class="empty"><i class="fa-regular fa-face-frown"></i><p>এখনো কোনো ইউজার নেই</p></div>`;
+    return;
+  }
+  if (!list.length) {
+    wrap.innerHTML = `<div class="empty"><i class="fa-solid fa-magnifying-glass"></i><p>"${esc(q)}" এর সাথে কিছু মেলেনি</p></div>`;
+    return;
+  }
+
+  const rows = list.map(u => `
+    <tr>
+      <td class="pid" data-open="${esc(u.pid)}" style="cursor:pointer">${esc(u.pid)}${u.status === "blocked" ? ' <span class="badge off">ব্লকড</span>' : ""}</td>
+      <td class="bal">${fmtMoney(u.balance)}</td>
+      <td class="dep">${fmtMoney(u.total_deposit)}</td>
+      <td class="seen">${timeAgo(u.lastSeen)}</td>
+      <td>
+        <button class="btn sm gray" data-pid="${esc(u.pid)}" title="ব্যালেন্স ট্যাবে খুলুন">
+          <i class="fa-solid fa-pen"></i>
+        </button>
+      </td>
+    </tr>
+  `).join("");
+
+  wrap.innerHTML = `
+    <div class="user-table-wrap">
+      <table>
+        <thead><tr>
+          <th>Player ID</th><th>ব্যালেন্স</th><th>মোট ডিপোজিট</th><th>শেষ দেখা</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+
+  wrap.querySelectorAll("button[data-pid]").forEach(b => {
+    b.onclick = () => {
+      switchTab("balance");
+      $("aPid").value = b.dataset.pid;
+      $("aAmt").value = "";
+      updateBalPreview();
+      $("aAmt").focus();
+    };
+  });
+  wrap.querySelectorAll("td[data-open]").forEach(td => {
+    td.onclick = () => openUserModal(td.dataset.open);
+  });
+}
+
+function openUserModal(pid) {
+  const u = USERS.find(x => x.pid === pid);
+  if (!u) return;
+  $("modalTitle").innerHTML = `<i class="fa-solid fa-user"></i> ${esc(pid)}`;
+  const blocked = u.status === "blocked";
+  $("modalBody").innerHTML = `
+    <div class="detail-row"><span>Player ID</span><b style="color:var(--info);font-family:monospace">${esc(u.pid)}</b></div>
+    <div class="detail-row"><span>বর্তমান ব্যালেন্স</span><b style="color:var(--primary)">${fmtMoney(u.balance)}</b></div>
+    <div class="detail-row"><span>মোট ডিপোজিট</span><b>${fmtMoney(u.total_deposit)}</b></div>
+    <div class="detail-row"><span>স্ট্যাটাস</span><b>${blocked ? `<span class="badge off">ব্লকড</span>` : `<span class="badge ok">অ্যাক্টিভ</span>`}</b></div>
+    ${blocked ? `<div class="detail-row"><span>কারণ</span><b>${esc(u.blockedReason || "—")}</b></div>` : ""}
+    <div class="detail-row"><span>তৈরি হয়েছে</span><b>${fmtFull(u.createdAt)}</b></div>
+    <div class="detail-row"><span>শেষ অ্যাডজাস্ট</span><b>${fmtFull(u.lastAdjusted)}</b></div>
+    <div class="detail-row"><span>শেষ দেখা</span><b>${timeAgo(u.lastSeen)}</b></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px">
+      <button class="btn" data-act="add" data-pid="${esc(u.pid)}"><i class="fa-solid fa-plus"></i> ৳500</button>
+      <button class="btn danger" data-act="sub" data-pid="${esc(u.pid)}"><i class="fa-solid fa-minus"></i> ৳500</button>
+      <button class="btn ${blocked ? "" : "warnb"}" data-act="${blocked ? "unblock" : "block"}" data-pid="${esc(u.pid)}"><i class="fa-solid ${blocked ? "fa-unlock" : "fa-ban"}"></i> ${blocked ? "আনব্লক" : "ব্লক"}</button>
+      <button class="btn gray" data-act="copy" data-pid="${esc(u.pid)}"><i class="fa-solid fa-copy"></i> PID কপি</button>
+    </div>
+    <button class="btn danger full" style="margin-top:10px" data-act="del" data-pid="${esc(u.pid)}"><i class="fa-solid fa-trash"></i> ইউজার ডিলিট (Backend লাগবে)</button>
+  `;
+  $("modalBody").querySelectorAll("button[data-act]").forEach(b => {
+    b.onclick = () => modalAction(b.dataset.act, b.dataset.pid);
+  });
+  $("userModal").classList.add("on");
+}
+
+function modalAction(act, pid) {
+  if (act === "add" || act === "sub") {
+    $("userModal").classList.remove("on");
+    switchTab("balance");
+    $("aPid").value = pid;
+    $("aAmt").value = act === "add" ? "500" : "-500";
+    updateBalPreview();
+    $("aAmt").focus();
+  } else if (act === "copy") {
+    copyText(pid);
+  } else if (act === "block") {
+    $("userModal").classList.remove("on");
+    askConfirm("ইউজার ব্লক করুন", `${esc(pid)} এর status = "blocked" হবে (extension সাথে সাথে ব্লক ওভারলে দেখাবে)।`, "কারণ (ঐচ্ছিক)", async (reason) => {
+      await setUserBlocked(pid, true, reason || "");
+    });
+  } else if (act === "unblock") {
+    $("userModal").classList.remove("on");
+    setUserBlocked(pid, false, "");
+  } else if (act === "del") {
+    $("userModal").classList.remove("on");
+    askConfirm("ইউজার ডিলিট", `${esc(pid)} — rules ক্লায়েন্টকে ডিলিট দেয় না; Backend Function দরকার। Function URL সেট থাকলে এখনই হবে।`, null, async () => {
+      await deleteUser(pid);
+    });
+  }
+}
+
+async function setUserBlocked(pid, blocked, reason) {
+  try {
+    const uref = ref(db, "users/" + pid);
+    const snap = await get(uref);
+    const cur = snap.val();
+    if (!cur) return toast("ইউজার পাওয়া যায়নি: " + pid, "err");
+    await update(uref, {
+      pid,
+      balance: round2(Number(cur.balance) || 0),   // rules: balance required
+      status: blocked ? "blocked" : "active",
+      blockedReason: String(reason || "").slice(0, 200),
+      lastAdjusted: Date.now()
+    });
+    toast(blocked ? "ব্লক হয়েছে: " + pid : "আনব্লক হয়েছে: " + pid, "ok");
+  } catch (e) {
+    toast("❌ " + friendlyErr(e), "err");
+  }
+}
+
+async function deleteUser(pid) {
+  if (!FN_URL) {
+    showMsg("cMsg", "⛔ Function URL সেট নেই — rules ক্লায়েন্ট ডিলিট দেয় না। সেটআপ ট্যাবে Function বসান। (কিছু মুছে ফেলা হয়নি)", "err");
+    switchTab("setup");
+    return;
+  }
+  try {
+    const r = await fnCall("users.delete", { pid });
+    if (r && r.ok) { toast("ডিলিট হয়েছে: " + pid, "ok"); showMsg("cMsg", "✅ Backend দিয়ে ডিলিট: " + esc(pid), "ok"); }
+    else showMsg("cMsg", "❌ " + esc((r && r.error) || "unknown"), "err");
+  } catch (e) {
+    showMsg("cMsg", "❌ " + esc(e.message), "err");
+  }
+}
+
+async function createUser() {
+  const pid = $("cPid").value.trim();
+  const bal = Number($("cBal").value);
+  if (!isValidPid(pid)) return showMsg("cMsg", "Player ID: ৩–২৪ অক্ষর/সংখ্যা (A-Z a-z 0-9 _ -)", "err");
+  if (!isFinite(bal) || bal < 0) return showMsg("cMsg", "প্রাথমিক ব্যালেন্স ০ বা তার বেশি দিন", "err");
+  const btn = $("createUserBtn");
+  btn.disabled = true;
+  try {
+    const uref = ref(db, "users/" + pid);
+    const snap = await get(uref);
+    if (snap.exists()) {
+      showMsg("cMsg", "⛔ এই PID আগে থেকেই আছে — ব্যালেন্স ট্যাব ব্যবহার করুন। (rules নতুন নোড ছাড়া লেখা দেয় না)", "err");
+      return;
+    }
+    await set(uref, {
+      pid,
+      balance: round2(bal),
+      total_deposit: round2(bal),
+      createdAt: Date.now(),
+      lastSeen: Date.now(),
+      lastAdjusted: Date.now(),
+      status: "active",
+      blockedReason: ""
+    });
+    showMsg("cMsg", `✅ ইউজার তৈরি — ${esc(pid)}, ব্যালেন্স ${fmtMoney(round2(bal))}`, "ok");
+    toast("ইউজার তৈরি: " + pid, "ok");
+    $("cPid").value = ""; $("cBal").value = "";
+  } catch (e) {
+    showMsg("cMsg", "❌ " + esc(friendlyErr(e)), "err");
+  } finally { btn.disabled = false; }
+}
+
+/* ═══════════ BALANCE (rules-compliant: pid + balance প্রতিবার) ═══════════ */
+function updateBalPreview() {
+  const pid = $("aPid").value.trim();
+  const u = USERS.find(x => x.pid === pid);
+  $("balPreview").innerHTML = u
+    ? `বর্তমান ব্যালেন্স: <b>${fmtMoney(u.balance)}</b> · মোট ডিপোজিট: ${fmtMoney(u.total_deposit)}`
+    : (pid ? "নতুন PID হলে প্রথম প্রয়োগেই তৈরি হবে" : "");
+}
+
+async function applyBalance() {
+  const pid = $("aPid").value.trim();
+  const amount = Number($("aAmt").value);
+  const btn = $("applyBal");
+
+  if (!isValidPid(pid)) return showMsg("aMsg", "সঠিক Player ID দিন (৩–২৪ অক্ষর/সংখ্যা)", "err");
+  if (!isFinite(amount) || amount === 0) return showMsg("aMsg", "সঠিক পরিমাণ লিখুন (০ হতে পারে না)", "err");
+  if (Math.abs(amount) > 100000000) return showMsg("aMsg", "পরিমাণ খুব বেশি", "err");
+
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> প্রক্রিয়া চলছে...';
+
+  try {
+    const uref = ref(db, "users/" + pid);
+    const snap = await get(uref);
+    const cur = snap.val();
+
+    if (!cur) {
+      const bal = round2(Math.max(0, amount));
+      await set(uref, {
+        pid,
+        balance: bal,
+        total_deposit: round2(Math.max(0, amount)),
+        createdAt: Date.now(),
+        lastSeen: Date.now(),
+        lastAdjusted: Date.now(),
+        status: "active",
+        blockedReason: ""
+      });
+      showMsg("aMsg", `✅ নতুন ইউজার তৈরি — ব্যালেন্স ${fmtMoney(bal)}`, "ok");
+      toast(`নতুন ইউজার ${pid}`, "ok");
+    } else {
+      const curBal = Number(cur.balance) || 0;
+      const curDep = Number(cur.total_deposit) || 0;
+      const rawNew = curBal + amount;
+      const newBal = round2(Math.max(0, rawNew));
+      const clamped = newBal !== round2(rawNew);
+      const newDep = round2(Math.max(0, curDep + (amount > 0 ? amount : 0)));
+
+      /* rules: newData.child('pid') === $pid + hasChildren(['balance']) + balance >= 0 */
+      await update(uref, {
+        pid,
+        balance: newBal,
+        total_deposit: newDep,
+        lastAdjusted: Date.now()
+      });
+      showMsg("aMsg", `✅ সফল — নতুন ব্যালেন্স ${fmtMoney(newBal)}${clamped ? " (rules: balance ≥ 0, তাই ০-তে clamp)" : ""}`, clamped ? "info" : "ok");
+      toast(`${pid} → ${fmtMoney(newBal)}`, "ok");
+    }
+    $("aAmt").value = "";
+    updateBalPreview();
+  } catch (e) {
+    showMsg("aMsg", "❌ " + esc(friendlyErr(e)) + " — কোনো পরিবর্তন হয়নি।", "err");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-check"></i> প্রয়োগ করুন';
+  }
+}
+
+/* ═══════════ SETTINGS ENGINE (shared schema) ═══════════ */
+function normalizeSettings(s) {
+  const out = {
+    status: true,
+    demo_balance: 5000,
+    player_logos: [],
+    plane_logos: [],
+    design: "",
+    aviator_url: DEFAULT_AVIATOR_URL,
+    bkash_url: DEFAULT_GATEWAY_URLS.bkash,
+    nagad_url: DEFAULT_GATEWAY_URLS.nagad,
+    gateways: {},
+    updatedAt: 0
+  };
+  for (const m of METHODS) {
+    out.gateways[m] = {
+      enabled: true,
+      url: DEFAULT_GATEWAY_URLS[m],
+      logo_url: "",
+      instructions: "",
+      pick_mode: "random",
+      active_number: "",
+      numbers: []
+    };
+  }
+  if (!s || typeof s !== "object") return out;
+  if (s.status === false) out.status = false;
+  if (typeof s.demo_balance === "number" && isFinite(s.demo_balance)) out.demo_balance = s.demo_balance;
+  if (Array.isArray(s.player_logos)) out.player_logos = s.player_logos.filter(x => typeof x === "string" && x).slice(0, 50);
+  if (Array.isArray(s.plane_logos)) out.plane_logos = s.plane_logos.filter(x => typeof x === "string" && x).slice(0, 50);
+  if (typeof s.design === "string") out.design = s.design;
+  if (isValidUrl(s.aviator_url)) out.aviator_url = s.aviator_url;
+  if (isValidUrl(s.bkash_url)) out.bkash_url = s.bkash_url;
+  if (isValidUrl(s.nagad_url)) out.nagad_url = s.nagad_url;
+  for (const m of METHODS) {
+    const g = s.gateways && s.gateways[m];
+    if (!g || typeof g !== "object") continue;
+    const gm = out.gateways[m];
+    gm.enabled = g.enabled !== false;
+    if (isValidUrl(g.url)) gm.url = g.url;
+    if (isValidUrl(g.logo_url)) gm.logo_url = g.logo_url;
+    if (typeof g.instructions === "string") gm.instructions = g.instructions;
+    if (["random", "round_robin", "fixed"].includes(g.pick_mode)) gm.pick_mode = g.pick_mode;
+    if (typeof g.active_number === "string") gm.active_number = g.active_number;
+    if (Array.isArray(g.numbers)) {
+      gm.numbers = g.numbers.slice(0, 5).map(n => ({
+        id: String((n && n.id) || uid()),
+        label: String((n && n.label) || ""),
+        number: String((n && n.number) || ""),
+        active: !n || n.active !== false
+      }));
+    }
+  }
+  return out;
+}
+
+function markDirty() {
+  if (!settingsLoaded) return;
+  settingsDirty = true;
+  $("dirtyBadge").classList.remove("hidden");
+}
+
+function renderSettingsForms() {
+  if (!DRAFT) return;
+  $("sStatus").value = DRAFT.status ? "true" : "false";
+  $("sDemo").value = typeof DRAFT.demo_balance === "number" ? DRAFT.demo_balance : "";
+  $("sPlayerLogos").value = (DRAFT.player_logos || []).join("\n");
+  $("sPlaneLogos").value = (DRAFT.plane_logos || []).join("\n");
+  $("sAviatorUrl").value = DRAFT.aviator_url || "";
+  $("sDesign").value = DRAFT.design || "";
+  for (const m of METHODS) {
+    const g = DRAFT.gateways[m];
+    $("gw_" + m + "_enabled").checked = !!g.enabled;
+    $("gw_" + m + "_url").value = g.url || "";
+    $("gw_" + m + "_logo").value = g.logo_url || "";
+    $("gw_" + m + "_instr").value = g.instructions || "";
+    $("gw_" + m + "_pick").value = g.pick_mode || "random";
+    renderNumbers(m);
+    updateFixedRow(m);
+    updateGwBadge(m);
+    updateLogoPreview(m);
+  }
+  $("dirtyBadge").classList.add("hidden");
+}
+
+function updateGwBadge(m) {
+  const g = DRAFT.gateways[m];
+  const b = $("gw_" + m + "_badge");
+  b.textContent = g.enabled ? "চালু" : "অফ";
+  b.className = "badge " + (g.enabled ? "ok" : "off");
+}
+
+function updateLogoPreview(m) {
+  const wrap = $("gw_" + m + "_logoprev");
+  const url = $("gw_" + m + "_logo").value.trim();
+  if (url && isValidUrl(url)) {
+    wrap.innerHTML = `<img src="${esc(url)}" alt="logo" onerror="this.parentNode.innerHTML='<i class=\\'fa-solid fa-image\\'></i>'">`;
+  } else {
+    wrap.innerHTML = `<i class="fa-solid fa-image"></i>`;
+  }
+}
+
+function updateFixedRow(m) {
+  const g = DRAFT.gateways[m];
+  const row = $("gw_" + m + "_fixedrow");
+  const sel = $("gw_" + m + "_active");
+  const isFixed = ($("gw_" + m + "_pick").value === "fixed");
+  row.classList.toggle("on", isFixed);
+  const opts = [`<option value="">— নির্বাচন করুন —</option>`];
+  for (const n of g.numbers) {
+    const lbl = (n.label ? n.label + " — " : "") + n.number;
+    opts.push(`<option value="${esc(n.id)}" ${g.active_number === n.id ? "selected" : ""}>${esc(lbl)}</option>`);
+  }
+  sel.innerHTML = opts.join("");
+}
+
+function renderNumbers(m) {
+  const g = DRAFT.gateways[m];
+  const wrap = $("gw_" + m + "_numbers");
+  wrap.innerHTML = g.numbers.map((n, i) => `
+    <div class="num-row" data-i="${i}">
+      <span class="num-idx">${i + 1}</span>
+      <input type="text" class="num-label" placeholder="লেবেল (যেমন Agent 1)" value="${esc(n.label)}" maxlength="40">
+      <input type="text" class="num-number" placeholder="01XXXXXXXXX" value="${esc(n.number)}" inputmode="numeric" autocomplete="off">
+      <label class="switch" title="Active"><input type="checkbox" class="num-active" ${n.active ? "checked" : ""}><span class="sl"></span></label>
+      <button class="icon-btn del num-del" title="মুছুন"><i class="fa-solid fa-trash"></i></button>
+    </div>
+  `).join("") || `<div class="hint" style="margin:4px 0 8px">কোনো নম্বর নেই — নিচের বাটনে যোগ করুন (৩–৫টি recommended)।</div>`;
+  $("gw_" + m + "_numcount").textContent = `${g.numbers.length}/৫টি নম্বর${g.numbers.length > 0 && g.numbers.length < 3 ? " — ৩টির কম হলে round_robin/random কম কার্যকর" : ""}`;
+}
+
+function addNumber(m) {
+  const g = DRAFT.gateways[m];
+  if (g.numbers.length >= 5) {
+    showMsg("sMsg", "সর্বোচ্চ ৫টি নম্বর রাখা যায়। আগে একটি মুছুন।", "err");
+    return;
+  }
+  g.numbers.push({ id: uid(), label: "", number: "", active: true });
+  renderNumbers(m);
+  updateFixedRow(m);
+  markDirty();
+}
+
+function bindGatewayUI(m) {
+  $("gw_" + m + "_add").onclick = () => addNumber(m);
+  $("gw_" + m + "_pick").addEventListener("change", () => { updateFixedRow(m); });
+  $("gw_" + m + "_enabled").addEventListener("change", () => {
+    DRAFT.gateways[m].enabled = $("gw_" + m + "_enabled").checked;
+    updateGwBadge(m);
+  });
+  $("gw_" + m + "_logo").addEventListener("change", () => updateLogoPreview(m));
+  const wrap = $("gw_" + m + "_numbers");
+  wrap.addEventListener("change", e => {
+    const row = e.target.closest(".num-row");
+    if (!row) return;
+    const i = Number(row.dataset.i);
+    const n = DRAFT.gateways[m].numbers[i];
+    if (!n) return;
+    if (e.target.classList.contains("num-label")) n.label = e.target.value;
+    else if (e.target.classList.contains("num-number")) n.number = e.target.value;
+    else if (e.target.classList.contains("num-active")) {
+      n.active = e.target.checked;
+      if (!n.active && DRAFT.gateways[m].active_number === n.id) DRAFT.gateways[m].active_number = "";
+    }
+  });
+  wrap.addEventListener("click", e => {
+    const del = e.target.closest(".num-del");
+    if (!del) return;
+    const row = del.closest(".num-row");
+    const i = Number(row.dataset.i);
+    const n = DRAFT.gateways[m].numbers[i];
+    askConfirm("নম্বর মুছুন", `${esc((n && (n.label ? n.label + " — " : "") + n.number) || "এই নম্বর")} মুছে ফেলা হবে (সেভ করলেই কার্যকর)।`, null, () => {
+      DRAFT.gateways[m].numbers.splice(i, 1);
+      if (n && DRAFT.gateways[m].active_number === n.id) DRAFT.gateways[m].active_number = "";
+      renderNumbers(m);
+      updateFixedRow(m);
+      markDirty();
+    });
+  });
+}
+
+function collectDraft() {
+  const errors = [], warnings = [];
+  const data = {
+    status: $("sStatus").value === "true",
+    demo_balance: Math.max(0, Math.round(Number($("sDemo").value) || 0)),
+    player_logos: $("sPlayerLogos").value.split("\n").map(s => s.trim()).filter(Boolean),
+    plane_logos: $("sPlaneLogos").value.split("\n").map(s => s.trim()).filter(Boolean),
+    design: $("sDesign").value.trim(),
+    aviator_url: $("sAviatorUrl").value.trim(),
+    gateways: {},
+    updatedAt: Date.now()
+  };
+  if (data.aviator_url && !isValidUrl(data.aviator_url)) errors.push("Aviator URL সঠিক https URL নয়");
+
+  for (const m of METHODS) {
+    const g = {
+      enabled: $("gw_" + m + "_enabled").checked,
+      url: $("gw_" + m + "_url").value.trim(),
+      logo_url: $("gw_" + m + "_logo").value.trim(),
+      instructions: $("gw_" + m + "_instr").value,
+      pick_mode: $("gw_" + m + "_pick").value,
+      active_number: $("gw_" + m + "_active").value || "",
+      numbers: deepClone(DRAFT.gateways[m].numbers)
+    };
+    if (g.enabled && !isValidUrl(g.url)) errors.push(METHOD_NAME[m] + ": গেটওয়ে URL সঠিক https URL নয়");
+    if (g.logo_url && !isValidUrl(g.logo_url)) errors.push(METHOD_NAME[m] + ": লোগো URL সঠিক https URL নয়");
+    /* normalize + validate numbers */
+    const seen = new Set();
+    g.numbers = g.numbers.filter(n => String(n.number || "").trim() !== "" || String(n.label || "").trim() !== "");
+    for (const n of g.numbers) {
+      if (!String(n.number || "").trim()) { errors.push(METHOD_NAME[m] + ": একটি নম্বর ফাঁকা (লেবেল: " + (n.label || "—") + ")"); continue; }
+      const norm = normBD(n.number);
+      if (!norm) { errors.push(METHOD_NAME[m] + ": ভুল নম্বর — " + esc(n.number) + " (দরকার 01XXXXXXXXX)"); continue; }
+      if (seen.has(norm)) warnings.push(METHOD_NAME[m] + ": ডুপ্লিকেট নম্বর বাদ — " + norm);
+      seen.add(norm);
+      n.number = norm;
+    }
+    g.numbers = g.numbers.filter(n => normBD(n.number));
+    if (g.numbers.length > 5) { errors.push(METHOD_NAME[m] + ": ৫টির বেশি নম্বর দেওয়া যায় না"); }
+    if (g.numbers.length > 0 && g.numbers.length < 3) warnings.push(METHOD_NAME[m] + ": ৩টির কম নম্বর — ৩–৫টি recommended");
+    if (g.pick_mode === "fixed") {
+      if (!g.active_number) errors.push(METHOD_NAME[m] + ": Fixed মোডে Active Number সিলেক্ট করুন");
+      else if (!g.numbers.some(n => n.id === g.active_number)) errors.push(METHOD_NAME[m] + ": Active Number তালিকায় নেই — আবার সিলেক্ট করুন");
+    }
+    if (g.pick_mode !== "fixed" && g.numbers.filter(n => n.active).length === 0 && g.numbers.length > 0) {
+      warnings.push(METHOD_NAME[m] + ": কোনো active নম্বর নেই — gateway কোনো নম্বর দেখাতে পারবে না");
+    }
+    data.gateways[m] = g;
+  }
+  /* Legacy mirrors — extension এগুলোই পড়ে (SSE + 30s poll) */
+  data.bkash_url = data.gateways.bkash.url;
+  data.nagad_url = data.gateways.nagad.url;
+  return { ok: errors.length === 0, errors, warnings, data };
+}
+
+const METHOD_NAME = { nagad: "নগদ", bkash: "বিকাশ" };
+
+async function saveSettings() {
+  const v = collectDraft();
+  if (!v.ok) {
+    showMsg("sMsg", "❌ ভুল আছে:<br>• " + v.errors.map(esc).join("<br>• "), "err");
+    return;
+  }
+  const payload = v.data;
+  const btn = $("saveSettings");
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> সেভ হচ্ছে...';
+  try {
+    if (FN_URL) {
+      /* সেভ Backend Function দিয়ে — server-side key যাচাই + Admin SDK write */
+      const r = await fnCall("settings.save", { settings: payload });
+      if (r && r.ok) {
+        settingsDirty = false;
+        $("dirtyBadge").classList.add("hidden");
+        const wtxt = v.warnings.length ? "<br>⚠ " + v.warnings.map(esc).join("<br>⚠ ") : "";
+        showMsg("sMsg", "✅ Backend দিয়ে সেভ হয়েছে (RTDB-তে রিফ্লেক্ট হচ্ছে)। updatedAt: " + fmtFull(r.updatedAt) + wtxt, "ok");
+        toast("সেটিংস সেভ হয়েছে", "ok");
+      } else {
+        showMsg("sMsg", "❌ Function সেভ করতে পারেনি: " + esc((r && r.error) || "unknown response") + " — কোনো পরিবর্তন হয়নি।", "err");
+      }
+    } else {
+      /* Function নেই — সরাসরি চেষ্টা। rules write:false হলে সৎ error দেখাবে। */
+      await set(ref(db, "settings/global"), payload);
+      settingsDirty = false;
+      $("dirtyBadge").classList.add("hidden");
+      showMsg("sMsg", "✅ সরাসরি সেভ সফল — আপনার বর্তমান rules এই লেখার অনুমতি দিচ্ছে।" + (v.warnings.length ? "<br>⚠ " + v.warnings.map(esc).join("<br>⚠ ") : ""), "ok");
+      toast("সেটিংস সেভ হয়েছে", "ok");
+    }
+  } catch (e) {
+    const denied = (e && e.code === "permission-denied") || /permission[_ ]denied|Permission denied/i.test(String(e && e.message));
+    if (denied) {
+      showMsg("sMsg",
+        "⛔ Permission denied — আপনার rules-এ <code>/settings</code>-এ <code>.write: false</code>, তাই ব্রাউজার থেকে সেভ সম্ভব নয়। <b>কোনো কিছু সেভ হয়নি</b> (ভুয়া success নয়)।<br>👉 সেটআপ ট্যাবে একবারের Cloud Function ডিপ্লয় করুন, তারপর Function URL বসিয়ে সেভ করুন। ততক্ষণ <b>Export</b> দিয়ে JSON সংরক্ষণ করতে পারেন।",
+        "err");
+      toast("Rules সেভ ব্লক করেছে — সেটআপ দেখুন", "err");
+    } else {
+      showMsg("sMsg", "❌ " + esc(friendlyErr(e)), "err");
+    }
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> সেভ করুন';
+  }
+}
+
+function exportSettings() {
+  const v = collectDraft();
+  if (!v.ok) { showMsg("sMsg", "❌ আগে ভুল ঠিক করুন:<br>• " + v.errors.map(esc).join("<br>• "), "err"); return; }
+  const json = JSON.stringify(v.data, null, 2);
+  copyText(json);
+  try {
+    const blob = new Blob([json], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "rx-settings-" + new Date().toISOString().slice(0, 10) + ".json";
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  } catch (e) {}
+  showMsg("sMsg", "✅ Export হয়েছে (কপি + ফাইল)। Import দিয়ে অন্য ব্রাউজারে ফেলে সেভ করতে পারবেন।", "ok");
+}
+
+function importSettings(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(String(reader.result));
+      DRAFT = normalizeSettings(parsed);
+      renderSettingsForms();
+      markDirty();
+      showMsg("sMsg", "✅ Import হয়েছে ফর্মে — দেখে <b>সেভ করুন</b> (সেভ না করলে RTDB বদলাবে না)।", "info");
+    } catch (e) {
+      showMsg("sMsg", "❌ JSON পড়া যায়নি: " + esc(e.message), "err");
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ═══════════ BACKEND FUNCTION CLIENT ═══════════ */
+async function fnCall(action, payload) {
+  if (!FN_URL) throw new Error("Function URL সেট করা নেই (সেটিংস ট্যাব)");
+  let url = FN_URL;
+  if (!/^https:\/\//.test(url)) throw new Error("Function URL অবশ্যই https হতে হবে");
+  const res = await fetch(url.replace(/\/+$/, ""), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-admin-key": ADMIN_KEY },
+    body: JSON.stringify(Object.assign({ action }, payload || {}))
+  });
+  let data = null;
+  try { data = await res.json(); } catch (e) {}
+  if (!res.ok) throw new Error((data && data.error) || ("HTTP " + res.status));
+  return data;
+}
+
+function saveFnUrl() {
+  const v = $("fnUrl").value.trim();
+  FN_URL = v;
+  if (v) store(FN_URL_STORAGE, v);
+  else { try { localStorage.removeItem(FN_URL_STORAGE); } catch (e) {} }
+}
+
+async function testFn() {
+  saveFnUrl();
+  if (!FN_URL) return showMsg("fnMsg", "আগে Function URL দিন", "err");
+  const btn = $("testFnBtn");
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px"></div>';
+  try {
+    const r = await fnCall("ping");
+    if (r && r.ok) {
+      showMsg("fnMsg", `✅ Function সংযুক্ত — project: ${esc(r.project || "?")} · ${fmtFull(r.time)}`, "ok");
+      PENDING_COUNT = null;
+      refreshPending();
+    } else showMsg("fnMsg", "❌ অপ্রত্যাশিত রেসপন্স", "err");
+  } catch (e) {
+    showMsg("fnMsg", "❌ " + esc(e.message) + " — URL ও deploy যাচাই করুন (401 হলে function-এর ADMIN_KEY আলাদা)", "err");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-plug"></i> Test';
+  }
+}
+
+async function refreshPending() {
+  if (!FN_URL) { PENDING_COUNT = null; renderStats(); return; }
+  try {
+    const r = await fnCall("deposits.list", { status: "pending" });
+    PENDING_COUNT = (r && r.ok && Array.isArray(r.deposits)) ? r.deposits.length : null;
+    renderStats();
+  } catch (e) { PENDING_COUNT = null; renderStats(); }
+}
+
+/* ═══════════ DEPOSITS ═══════════ */
+async function probeDeposits() {
+  if (FN_URL) { depMode = "fn"; renderDeposits(); await loadFnDeposits(); return; }
+  if (depProbed) return renderDeposits();
+  depProbed = true;
+  depMode = "probing"; renderDeposits();
+  try {
+    const snap = await get(ref(db, "transactions"));
+    depMode = snap.exists() ? "direct" : "direct-empty";
+    if (snap.exists()) {
+      DEPOSITS = Object.entries(snap.val()).map(([txId, t]) => Object.assign({ txId }, t))
+        .filter(t => (t.status || "") === "pending")
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 200);
+    }
+  } catch (e) {
+    depMode = "denied";
+  }
+  renderDeposits();
+}
+
+async function loadFnDeposits() {
+  const list = $("depList");
+  list.innerHTML = `<div class="loading-row"><div class="spinner"></div> Backend থেকে লোড হচ্ছে...</div>`;
+  try {
+    const r = await fnCall("deposits.list", { status: "pending" });
+    DEPOSITS = (r && r.ok && Array.isArray(r.deposits)) ? r.deposits : [];
+    PENDING_COUNT = DEPOSITS.length;
+    renderStats();
+    renderDeposits();
+  } catch (e) {
+    list.innerHTML = `<div class="empty"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger)"></i><p>Function কল fail: ${esc(e.message)}</p></div>`;
+  }
+}
+
+function renderDeposits() {
+  const st = $("depStatus"), list = $("depList");
+  if (depMode === "probing") {
+    st.textContent = "";
+    list.innerHTML = `<div class="loading-row"><div class="spinner"></div> যাচাই হচ্ছে...</div>`;
+    return;
+  }
+  if (depMode === "denied") {
+    st.innerHTML = `আপনার rules-এ <code>/transactions</code>-এ <code>".read": false</code> — ব্রাউজার সরাসরি পড়তে পারে না (সৎ ফলাফল, কোনো ভুয়া ডেটা নেই)।`;
+    list.innerHTML = `
+      <div class="card2">
+        <h4 style="font-size:14px;margin-bottom:8px"><i class="fa-solid fa-lock" style="color:var(--warn)"></i> ডিপোজিট দেখতে/অ্যাপ্রুভ করতে হলে</h4>
+        <div class="hint">Backend Function ডিপ্লয় করুন (একবারের সেটআপ) — Function URL বসালে এখানেই pending লিস্ট, <b>অ্যাপ্রুভ</b> (ইউজারের ব্যালেন্সে ক্রেডিট) ও <b>রিজেক্ট</b> কাজ করবে। Function Admin SDK দিয়ে rules বাইপাস করে — আপনার rules অপরিবর্তিত থাকে।</div>
+        <button class="btn" id="gotoSetup"><i class="fa-solid fa-screwdriver-wrench"></i> সেটআপ ট্যাবে যান</button>
+      </div>`;
+    const g = $("gotoSetup");
+    if (g) g.onclick = () => switchTab("setup");
+    return;
+  }
+  if (depMode === "direct-empty") {
+    st.innerHTML = `<span class="badge ok">direct read</span> rules বর্তমানে read দিচ্ছে — কিন্তু কোনো transaction নেই।`;
+    list.innerHTML = `<div class="empty"><i class="fa-solid fa-inbox"></i><p>কোনো পেন্ডিং ডিপোজিট নেই</p></div>`;
+    return;
+  }
+  if (depMode === "direct") {
+    st.innerHTML = `<span class="badge info">direct read</span> rules বর্তমানে transactions read দিচ্ছে। অ্যাপ্রুভ/রিজেক্ট লেখার জন্য rules এতে বাধা দেয় — Backend Function দরকার।`;
+    renderDepositItems(list, false);
+    return;
+  }
+  if (depMode === "fn") {
+    st.innerHTML = FN_URL
+      ? `<span class="badge ok">Backend</span> Function দিয়ে pending লিস্ট · অ্যাপ্রুভ = ব্যালেন্স ক্রেডিট + status approved`
+      : `<span class="badge warn">no function</span>`;
+    renderDepositItems(list, true);
+    return;
+  }
+}
+
+function renderDepositItems(list, canProcess) {
+  if (!DEPOSITS.length) {
+    list.innerHTML = `<div class="empty"><i class="fa-solid fa-inbox"></i><p>কোনো পেন্ডিং ডিপোজিট নেই</p></div>`;
+    return;
+  }
+  list.innerHTML = DEPOSITS.map(t => `
+    <div class="dep-item" data-tx="${esc(t.txId)}">
+      <div class="dh">
+        <b>${esc(t.trxId || t.txId)}</b>
+        <span class="badge info">${esc((t.method || "?").toUpperCase())}</span>
+        <span class="badge warn">pending</span>
+      </div>
+      <div class="dg">
+        <span>Wallet/PID: <b>${esc(t.wallet || t.pid || "—")}</b></span>
+        <span>Amount: <b>${t.amount != null ? fmtMoney(Number(t.amount) || 0) : "—"}</b></span>
+        <span>সময়: <b>${fmtFull(t.timestamp)}</b></span>
+        ${t.note ? `<span>নোট: <b>${esc(t.note)}</b></span>` : ""}
+      </div>
+      ${canProcess ? `
+      <div class="da">
+        <button class="btn sm" data-dact="approve"><i class="fa-solid fa-check"></i> অ্যাপ্রুভ</button>
+        <button class="btn sm danger" data-dact="reject"><i class="fa-solid fa-xmark"></i> রিজেক্ট</button>
+        <button class="btn sm gray" data-dact="copy"><i class="fa-solid fa-copy"></i> trxId কপি</button>
+      </div>` : `<div class="hint" style="margin:0">প্রসেসিং-এর জন্য Backend Function দরকার (সেটআপ ট্যাব)।</div>`}
+    </div>
+  `).join("");
+
+  list.querySelectorAll(".dep-item").forEach(item => {
+    const txId = item.dataset.tx;
+    const tx = DEPOSITS.find(x => x.txId === txId);
+    item.querySelectorAll("button[data-dact]").forEach(b => {
+      b.onclick = () => {
+        const act = b.dataset.dact;
+        if (act === "copy") copyText(tx.trxId || txId);
+        else if (act === "approve") openApprove(tx);
+        else if (act === "reject") askConfirm("ডিপোজিট রিজেক্ট", `${esc(tx.trxId || txId)} — status rejected হবে। ব্যালেন্স কাটা হবে না।`, "কারণ (ঐচ্ছিক)", async (reason) => {
+          await doReject(txId, reason);
+        });
+      };
+    });
+  });
+}
+
+let APPROVE_TX = null;
+function openApprove(tx) {
+  APPROVE_TX = tx;
+  $("approveInfo").innerHTML = `
+    trxId: <code>${esc(tx.trxId || tx.txId)}</code><br>
+    method: <b>${esc((tx.method || "?").toUpperCase())}</b> · wallet: <b>${esc(tx.wallet || "—")}</b> · amount: <b>${tx.amount != null ? fmtMoney(Number(tx.amount) || 0) : "—"}</b><br>
+    অ্যাপ্রুভ করলে Function ইউজারের <code>balance</code>-এ amount যোগ করে <code>total_deposit</code> বাড়াবে এবং tx status <code>approved</code> করবে।`;
+  $("approvePid").value = String(tx.pid || tx.wallet || "");
+  $("approveAmt").value = tx.amount != null ? String(Number(tx.amount) || "") : "";
+  $("approveMsg").className = "msg";
+  $("approveModal").classList.add("on");
+}
+
+async function doApprove() {
+  if (!APPROVE_TX) return;
+  const pid = $("approvePid").value.trim();
+  const amount = Number($("approveAmt").value);
+  if (!isValidPid(pid)) return showMsg("approveMsg", "সঠিক User PID দিন", "err");
+  if (!isFinite(amount) || amount <= 0) return showMsg("approveMsg", "সঠিক পরিমাণ দিন", "err");
+  const btn = $("approveOk");
+  btn.disabled = true;
+  try {
+    const r = await fnCall("deposits.approve", { txId: APPROVE_TX.txId, pid, amount });
+    if (r && r.ok) {
+      $("approveModal").classList.remove("on");
+      toast(`অ্যাপ্রুভ: ${pid} +${fmtMoney(amount)}`, "ok");
+      await loadFnDeposits();
+    } else {
+      showMsg("approveMsg", "❌ " + esc((r && r.error) || "unknown"), "err");
+    }
+  } catch (e) {
+    showMsg("approveMsg", "❌ " + esc(e.message), "err");
+  } finally { btn.disabled = false; }
+}
+
+async function doReject(txId, reason) {
+  try {
+    const r = await fnCall("deposits.reject", { txId, reason: reason || "" });
+    if (r && r.ok) { toast("রিজেক্ট হয়েছে: " + txId, "ok"); await loadFnDeposits(); }
+    else toast("❌ " + ((r && r.error) || "unknown"), "err");
+  } catch (e) { toast("❌ " + e.message, "err"); }
+}
+
+/* ═══════════ MESSAGES (read-only) ═══════════ */
+function renderMessages() {
+  const wrap = $("msgList");
+  if (!MESSAGES.length) {
+    wrap.innerHTML = `<div class="empty"><i class="fa-regular fa-envelope-open"></i><p>কোনো মেসেজ নেই</p></div>`;
+    return;
+  }
+  wrap.innerHTML = MESSAGES.slice(0, 200).map(m => {
+    const pid = m.pid || m.from || m.user || "—";
+    const text = m.text || m.message || m.body || m.content || "";
+    const ts = m.timestamp || m.ts || m.at || 0;
+    return `
+      <div class="msg-list-item">
+        <div class="mh"><b>${esc(pid)}</b><span>${fmtFull(ts)}${ts ? " · " + timeAgo(ts) : ""}</span></div>
+        <div class="mt">${esc(text)}</div>
+      </div>`;
+  }).join("") + (MESSAGES.length > 200 ? `<div class="hint">প্রথম ২০০টি দেখানো হয়েছে (মোট ${MESSAGES.length})</div>` : "");
+}
+
+/* ═══════════ CONFIRM MODAL ═══════════ */
+let confirmCb = null;
+function askConfirm(title, bodyHtml, inputLabel, cb) {
+  $("confirmTitle").textContent = title;
+  $("confirmBody").innerHTML = bodyHtml;
+  const wrap = $("confirmInputWrap");
+  if (inputLabel) {
+    wrap.classList.remove("hidden");
+    $("confirmInputLabel").textContent = inputLabel;
+    $("confirmInput").value = "";
+  } else {
+    wrap.classList.add("hidden");
+  }
+  confirmCb = cb;
+  $("confirmModal").classList.add("on");
+}
+
+/* ═══════════ SETUP TEMPLATES + CHECKLIST ═══════════ */
+let setupFilled = false;
+function fillSetupTemplates() {
+  if (setupFilled) return;
+  setupFilled = true;
+  const pairs = [["codeRules", "tplRules"], ["codeFn", "tplFn"], ["codePkg", "tplPkg"], ["codeDeploy", "tplDeploy"], ["codeSchema", "tplSchema"], ["codePatch", "tplPatch"]];
+  for (const [slot, tpl] of pairs) {
+    const t = $(tpl);
+    if (t) $(slot).textContent = (t.textContent || "").trim();
+  }
+}
+
+const CHECKLIST = [
+  "লগইন: SIAMVIP দিলে অ্যাপ খোলে; ভুল key দিলে shake + error",
+  "Dashboard-এর ৬টি stat (ইউজার/ব্যালেন্স/ডিপোজিট/২৪ঘ/লাইভ/পেন্ডিং) আপডেট হচ্ছে",
+  "ইউজার লিস্ট realtime আসছে; সার্চ কাজ করছে",
+  "নতুন ইউজার তৈরি (pid + প্রাথমিক ব্যালেন্স) — RTDB-তে pid ফিল্ড সহ সেভ",
+  "ব্যালেন্স + ও − প্রয়োগ — প্রতি লেখায় pid+balance যাচ্ছে (rules-compliant)",
+  "বড় minus দিলে balance ০-তে clamp হয়, permission error আসে না",
+  "ডুপ্লিকেট PID তৈরি করা যায় না (সৎ error)",
+  "ইউজার মোডাল: ব্লক/আনব্লক — extension-এ সাথে সাথে ইফেক্ট",
+  "সেটিংস পড়া হচ্ছে — ফর্মগুলো RTDB মানে ভরা",
+  "Function URL ছাড়া সেভ → সৎ Permission denied মেসেজ (ভুয়া success নেই)",
+  "Cloud Function ডিপ্লয় → URL বসানো → Test ping ✅",
+  "Function দিয়ে সেভ → RTDB settings/global আপডেট + bkash_url/nagad_url মিরর",
+  "নগদ ও বিকাশ আলাদা কার্ডে URL/লোগো প্রিভিউ/ইন্সট্রাকশন এডিট + সেভ",
+  "নম্বর add/edit/delete (≤৫), active টগল, fixed মোডে active_number",
+  "pick_mode: random / round_robin / fixed সেভ ও রিফ্লেক্ট",
+  "Export JSON (কপি+ফাইল) ও Import → ফর্মে ভরা",
+  "ডিপোজিট ট্যাব: rules অনুযায়ী read-blocked বার্তা, Function দিলে pending লিস্ট",
+  "Function দিয়ে অ্যাপ্রুভ → ইউজার ব্যালেন্স বাড়ে + tx approved; রিজেক্ট → rejected",
+  "মোবাইল (≤৭৬৮px): bottom nav, টেবিল scroll, bottom-sheet মোডাল, sticky সেভ বার",
+  "লগআউট → লগইন স্ক্রিন; রিলোডে key মনে থাকে"
+];
+
+let ckState = {};
+function renderChecklist() {
+  try { ckState = JSON.parse(load(CK_STORAGE) || "{}"); } catch (e) { ckState = {}; }
+  if (typeof ckState !== "object" || !ckState) ckState = {};
+  const wrap = $("checklistWrap");
+  wrap.innerHTML = CHECKLIST.map((t, i) => `
+    <label class="check-item ${ckState[i] ? "done" : ""}">
+      <input type="checkbox" data-ck="${i}" ${ckState[i] ? "checked" : ""}>
+      <span>${esc(t)}</span>
+    </label>
+  `).join("");
+  $("ckTotal").textContent = CHECKLIST.length;
+  updateCkProgress();
+}
+function updateCkProgress() {
+  const done = CHECKLIST.filter((_, i) => ckState[i]).length;
+  $("ckDone").textContent = done;
+}
+
+/* ═══════════ EVENT BINDINGS ═══════════ */
+$("loginBtn").onclick = doLogin;
+$("adminKey").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+$("logoutBtn").onclick = logout;
+
+document.querySelectorAll(".tabs button, .bottom-nav button").forEach(btn => {
+  btn.addEventListener("click", () => activateTab(btn.dataset.tab));
+});
+
+$("search").addEventListener("input", renderUsers);
+$("refreshBtn").onclick = () => { toast("রিয়েল-টাইম আপডেট চলছে", "ok"); };
+
+$("createUserBtn").onclick = createUser;
+$("cBal").addEventListener("keydown", e => { if (e.key === "Enter") createUser(); });
+$("cPid").addEventListener("keydown", e => { if (e.key === "Enter") createUser(); });
+
+$("aPid").addEventListener("input", updateBalPreview);
+$("applyBal").onclick = applyBalance;
+document.querySelectorAll(".quick-row button[data-amt]").forEach(b => {
+  b.onclick = () => { $("aAmt").value = b.dataset.amt; };
+});
+
+$("saveSettings").onclick = saveSettings;
+$("exportBtn").onclick = exportSettings;
+$("importBtn").onclick = () => $("importFile").click();
+$("importFile").addEventListener("change", e => {
+  if (e.target.files && e.target.files[0]) importSettings(e.target.files[0]);
+  e.target.value = "";
+});
+
+$("fnUrl").addEventListener("change", saveFnUrl);
+$("testFnBtn").onclick = testFn;
+$("clearFnBtn").onclick = () => {
+  $("fnUrl").value = ""; saveFnUrl();
+  PENDING_COUNT = null; renderStats();
+  showMsg("fnMsg", "Function URL মুছে ফেলা হয়েছে (localStorage থেকেও)।", "info");
+};
+
+$("depReload").onclick = () => { depProbed = false; probeDeposits(); };
+
+$("remoteRefresh").onclick = () => {
+  DRAFT = deepClone(SETTINGS || normalizeSettings(null));
+  renderSettingsForms();
+  settingsDirty = false;
+  $("remoteBar").classList.remove("on");
+  toast("রিমোট সেটিংস লোড হয়েছে", "ok");
+};
+
+$("p-settings").addEventListener("input", markDirty);
+$("p-settings").addEventListener("change", markDirty);
+
+for (const m of METHODS) bindGatewayUI(m);
+
+$("modalClose").onclick = () => $("userModal").classList.remove("on");
+$("userModal").addEventListener("click", e => { if (e.target === $("userModal")) $("userModal").classList.remove("on"); });
+
+$("confirmOk").onclick = () => {
+  const val = $("confirmInputWrap").classList.contains("hidden") ? undefined : $("confirmInput").value;
+  $("confirmModal").classList.remove("on");
+  const cb = confirmCb; confirmCb = null;
+  if (cb) cb(val);
+};
+$("confirmCancel").onclick = () => { confirmCb = null; $("confirmModal").classList.remove("on"); };
+$("confirmModal").addEventListener("click", e => {
+  if (e.target === $("confirmModal")) { confirmCb = null; $("confirmModal").classList.remove("on"); }
+});
+
+$("approveOk").onclick = doApprove;
+$("approveCancel").onclick = () => { APPROVE_TX = null; $("approveModal").classList.remove("on"); };
+$("approveModal").addEventListener("click", e => {
+  if (e.target === $("approveModal")) { APPROVE_TX = null; $("approveModal").classList.remove("on"); }
+});
+
+document.querySelectorAll(".copy-btn").forEach(b => {
+  b.addEventListener("click", () => {
+    const slot = $(b.dataset.copy);
+    if (slot) copyText(slot.textContent || "");
+  });
+});
+
+$("checklistWrap").addEventListener("change", e => {
+  const i = e.target.dataset.ck;
+  if (i === undefined) return;
+  ckState[i] = e.target.checked;
+  store(CK_STORAGE, JSON.stringify(ckState));
+  e.target.closest(".check-item").classList.toggle("done", e.target.checked);
+  updateCkProgress();
+});
+
+tryStoredKey();
+</script>
+
+
+</body>
+</html>

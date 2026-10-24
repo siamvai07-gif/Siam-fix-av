@@ -1,0 +1,8 @@
+{
+  "name": "Remix RX Pay \u0026 Aviator Admin System",
+  "description": "Complete integrated payment, user, admin, and extension system with Firebase Realtime Database and bKash/Nagad gateways.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

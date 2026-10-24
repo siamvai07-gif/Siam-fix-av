@@ -1,0 +1,7 @@
+/bkash         /bkash.html       200
+/nagad         /nagad.html       200
+/extension.js  /extension.js     200
+/SX_PRO.user.js /extension.js    200
+/api/admin/action /.netlify/functions/admin 200
+/api/*         /.netlify/functions/:splat  200
+/*             /index.html       200

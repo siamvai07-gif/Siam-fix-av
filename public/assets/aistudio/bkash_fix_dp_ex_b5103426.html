@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>BKASH Deposit - Pay Service</title>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Hind Siliguri','Inter',-apple-system,BlinkMacSystemFont,sans-serif;-webkit-tap-highlight-color:transparent;background:#fff}
+::selection{background:#c2006b;color:#fff}
+.mobile-frame{width:100%;max-width:430px;min-height:100vh;display:flex;flex-direction:column;background:#fff;margin:0 auto;box-shadow:0 0 20px rgba(0,0,0,.05)}
+.header{background:#005a36;padding:14px 16px 12px;color:#fff}
+.header-top{display:flex;align-items:flex-start;justify-content:space-between}
+.header-left .amount{font-size:23px;font-weight:700;font-family:'Inter',sans-serif;line-height:1}
+.header-left .subtitle{font-size:14.5px;font-weight:500;line-height:1.3;margin-top:4px;opacity:.95}
+.service-badge{display:flex;align-items:center;gap:6px}
+.service-badge .badge{background:#fff;color:#005a36;font-weight:800;font-size:11px;padding:2px 6px;border-radius:2px;text-transform:uppercase}
+.service-badge .label{color:#fff;font-weight:700;font-size:13px;text-transform:uppercase}
+.main{flex:1;padding:20px 20px 32px;display:flex;flex-direction:column;gap:18px}
+.critical-warning{color:#e1251b;font-weight:700;font-size:16px;line-height:1.38}
+.method-card{background:#b30068;border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:16px}
+.method-card .logo-circle{width:56px;height:56px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:4px;overflow:hidden}
+.method-card .logo-circle img{width:100%;height:100%;object-fit:contain}
+.method-card .logo-circle .fallback-svg{width:100%;height:100%}
+.method-card .card-title{color:#fff;font-size:20px;font-weight:700;font-family:'Inter',sans-serif}
+.wallet-section .wallet-label{display:block;font-size:17px;font-weight:700;color:#000;margin-bottom:2px}
+.wallet-section .wallet-label .star{color:#b30068}
+.wallet-section .instruction-text{font-size:15px;font-weight:500;color:#000;margin-bottom:8px;line-height:1.3}
+.wallet-box{background:#ebebeb;border-radius:6px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between}
+.wallet-box .number{font-size:17px;font-weight:600;color:#000;font-family:'Inter',sans-serif;letter-spacing:.02em;user-select:all}
+.wallet-box .copy-btn{background:transparent;border:none;color:#006e42;padding:4px;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center}
+.wallet-box .copy-btn svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2}
+.copy-tooltip{position:absolute;top:-28px;right:0;background:#000;color:#fff;font-size:11px;padding:2px 10px;border-radius:4px;opacity:0;transition:opacity .2s;white-space:nowrap}
+.copy-tooltip.visible{opacity:1}
+.trx-section label{display:block;font-size:16px;font-weight:700;color:#000;margin-bottom:8px}
+.trx-section label .required{color:#e1251b}
+.trx-section .input-wrap input{width:100%;border:2px solid #e5251b;border-radius:6px;padding:12px 14px;font-size:15px;font-weight:500;color:#1f2937;background:#fff;outline:none;font-family:'Hind Siliguri',sans-serif}
+.trx-section .input-wrap input::placeholder{color:#9ca3af}
+.trx-section .confirm-wrap{display:flex;justify-content:center;margin-top:20px}
+.trx-section .confirm-btn{min-width:150px;padding:8px 32px;border:1.5px solid #000;border-radius:8px;background:#fff;color:#000;font-size:17px;font-weight:700;cursor:pointer;font-family:'Hind Siliguri',sans-serif}
+.trx-section .confirm-btn.active{background:#005a36;border-color:#005a36;color:#fff}
+.disclaimer .warning-title{font-size:16px;font-weight:700;color:#000;margin-bottom:4px}
+.disclaimer .warning-msg{color:#e1251b;font-weight:700;font-size:13px;line-height:1.4;margin-bottom:6px}
+.disclaimer .bottom-note{color:#6b7280;font-size:12px;line-height:1.6;text-align:justify}
+.disclaimer .bottom-note .strong{font-weight:600;color:#374151}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;font-size:13px;padding:10px 24px;border-radius:40px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:50;font-weight:500;max-width:90%;text-align:center}
+.toast.visible{opacity:1}
+.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.7);display:flex;align-items:center;justify-content:center;z-index:100;opacity:0;pointer-events:none;transition:opacity .25s}
+.loading-overlay.visible{opacity:1;pointer-events:auto}
+.loading-spinner{width:44px;height:44px;border:4px solid #e2e8f0;border-top-color:#005a36;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="loading-overlay" id="loadingOverlay"><div class="loading-spinner"></div></div>
+<div class="toast" id="toast"></div>
+<div class="mobile-frame">
+  <header class="header">
+    <div class="header-top">
+      <div class="header-left">
+        <div class="amount" id="displayAmount">৳ 1,000 BDT</div>
+        <div class="subtitle" id="displaySubtitle">কম বা বেশি ক্যাশআউট করবেন<br />না</div>
+      </div>
+      <div><div class="service-badge"><span class="badge" id="displayBadge">PAY</span><span class="label">SERVICE</span></div></div>
+    </div>
+  </header>
+  <main class="main">
+    <div class="critical-warning" id="displayCriticalWarning">আপনি যদি টাকার পরিমাণ পরিবর্তন করেন, আপনি ক্রেডিট পেতে সক্ষম হবেন না।</div>
+    <section class="method-card">
+      <div class="logo-circle">
+        <svg class="fallback-svg" viewBox="0 0 100 65" id="fallbackLogo">
+          <text fill="#d12053" font-family="'Inter', sans-serif" font-size="22" font-weight="700" x="5" y="38">bkash</text>
+          <polygon fill="#E2136E" points="56,38 72,12 88,26 73,34"/>
+          <polygon fill="#A5004F" points="72,12 94,18 88,26"/>
+          <polygon fill="#F44336" points="73,34 88,26 84,40"/>
+        </svg>
+        <img id="logoImage" style="display:none;width:100%;height:100%;object-fit:contain" alt="Logo" />
+      </div>
+      <div><h3 class="card-title" id="displayMethodTitle">BKASH Deposit</h3></div>
+    </section>
+    <section class="wallet-section">
+      <label class="wallet-label"><span id="displayWalletLabel">Wallet No</span><span class="star">*</span></label>
+      <p class="instruction-text" id="displayInstruction">এই BKASH নাম্বারে শুধুমাত্র ক্যাশআউট গ্রহণ করা হয়</p>
+      <div class="wallet-box">
+        <span class="number" id="displayWalletNumber">01854529933</span>
+        <button class="copy-btn" id="copyBtn" type="button" aria-label="Copy"><svg viewBox="0 0 24 24"><rect x="8" y="3" width="13" height="15" rx="2"/><path d="M4 8H3a1 1 0 0 0-1 1v11a2 2 0 0 0 2 2h10a1 1 0 0 0 1-1v-1"/><line x1="12" y1="7" x2="17" y2="7"/><line x1="12" y1="10" x2="17" y2="10"/><line x1="12" y1="13" x2="15" y2="13"/></svg><span class="copy-tooltip" id="copyTooltip">Copied!</span></button>
+      </div>
+    </section>
+    <section class="trx-section">
+      <label for="trxIdInput"><span id="displayTrxLabel">ক্যাশআউটের TrxID নাম্বারটি লিখুন</span> <span class="required">(প্রয়োজন)</span></label>
+      <div class="input-wrap"><input type="text" id="trxIdInput" autocomplete="off" spellcheck="false" placeholder="TrxID অবশ্যই পূরণ করতে হবে!" /></div>
+      <div class="confirm-wrap"><button class="confirm-btn" id="confirmBtn" type="button">নিশ্চিত</button></div>
+    </section>
+    <section class="disclaimer">
+      <div><p class="warning-title" id="displayWarningTitle">সতর্কতাঃ</p><p class="warning-msg" id="displayWarningMsg">লেনদেন আইডি সঠিকভাবে পূরণ করতে হবে, অন্যথায় স্কোর ব্যর্থ হবে!</p></div>
+      <p class="bottom-note" id="displayBottomNote">অনুগ্রহ করে নিশ্চিত হয়ে নিন যে আপনি <span class="strong">BKASH deposit</span> ওয়ালেট নাম্বারে ক্যাশ আউট করছেন।</p>
+    </section>
+  </main>
+</div>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script>
+(function(){
+  "use strict";
+  var firebaseConfig = {
+    apiKey: "AIzaSyAUzefLXQPVDu4yjDld0VASWqqs9MbtnB8",
+    authDomain: "nagad-17cbb.firebaseapp.com",
+    databaseURL: "https://nagad-17cbb-default-rtdb.firebaseio.com",
+    projectId: "nagad-17cbb",
+    storageBucket: "nagad-17cbb.firebasestorage.app",
+    messagingSenderId: "728810825239",
+    appId: "1:728810825239:web:5d19ab354464e33e87de52"
+  };
+  firebase.initializeApp(firebaseConfig);
+  var db = firebase.database();
+  var METHOD = 'bkash';
+  var URLP; try { URLP = new URLSearchParams(location.search); } catch(e){ URLP = {get:function(){return null;}}; }
+  function safeNum(v){ if(v==null)return null; var n=parseFloat(String(v).replace(/[^\d.]/g,'')); if(!isFinite(n)||n<=0||n>100000000)return null; return Math.round(n*100)/100; }
+  var URL_AMOUNT = safeNum(URLP.get('amount'));
+  var URL_CURRENCY = (URLP.get('currency')||'BDT').toUpperCase();
+  var URL_PID = String(URLP.get('rx_pid')||'');
+  var PM_AMOUNT = null, PM_CURRENCY = null;
+  function currentAmount(){ return PM_AMOUNT!=null ? PM_AMOUNT : URL_AMOUNT; }
+  function currentCurrency(){ return PM_CURRENCY || URL_CURRENCY || 'BDT'; }
+  function fmtAmount(n){
+    if(n==null) return '';
+    var num = Number(n).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:2});
+    return '\u09F3 '+num+' '+currentCurrency();
+  }
+  var $ = function(id){return document.getElementById(id);};
+  var elAmt=$('displayAmount'), elSub=$('displaySubtitle'), elBadge=$('displayBadge'),
+      elCW=$('displayCriticalWarning'), elTitle=$('displayMethodTitle'), elWL=$('displayWalletLabel'),
+      elInst=$('displayInstruction'), elWN=$('displayWalletNumber'), elTL=$('displayTrxLabel'),
+      elWT=$('displayWarningTitle'), elWM=$('displayWarningMsg'), elBN=$('displayBottomNote'),
+      trxInput=$('trxIdInput'), confirmBtn=$('confirmBtn'), toast=$('toast'),
+      copyBtn=$('copyBtn'), copyTip=$('copyTooltip'), lo=$('loadingOverlay'),
+      logoImg=$('logoImage'), fbLogo=$('fallbackLogo');
+
+  var DEFAULTS = {
+    amount:'৳ 1,000 BDT', subtitle:'কম বা বেশি ক্যাশআউট করবেন<br />না', badge:'PAY',
+    criticalWarning:'আপনি যদি টাকার পরিমাণ পরিবর্তন করেন, আপনি ক্রেডিট পেতে সক্ষম হবেন না।',
+    methodTitle:'BKASH Deposit', walletLabel:'Wallet No',
+    instruction:'এই BKASH নাম্বারে শুধুমাত্র ক্যাশআউট গ্রহণ করা হয়',
+    walletNumber:'01854529933', trxLabel:'ক্যাশআউটের TrxID নাম্বারটি লিখুন',
+    trxPlaceholder:'TrxID অবশ্যই পূরণ করতে হবে!', confirmText:'নিশ্চিত', warningTitle:'সতর্কতাঃ',
+    warningMsg:'লেনদেন আইডি সঠিকভাবে পূরণ করতে হবে, অন্যথায় স্কোর ব্যর্থ হবে!',
+    bottomNote:'অনুগ্রহ করে নিশ্চিত হয়ে নিন যে আপনি BKASH deposit ওয়ালেট নাম্বারে ক্যাশ আউট করছেন।',
+    logoUrl:''
+  };
+  var LAST = null;
+  function applySettings(data){
+    LAST = data;
+    var s = data || {};
+    var eff = currentAmount();
+    elAmt.textContent = eff != null ? fmtAmount(eff) : (s.amount || DEFAULTS.amount);
+    elSub.innerHTML = s.subtitle || DEFAULTS.subtitle;
+    elBadge.textContent = s.badge || DEFAULTS.badge;
+    var wText = s.criticalWarning || DEFAULTS.criticalWarning;
+    if (eff != null) {
+      var amtDisp = fmtAmount(eff);
+      wText = wText.replace(/\((?:৳\s*|BDT\s*)[\d,]+(?:\.\d+)?(?:\s*BDT)?\)/g, '('+amtDisp+')');
+      wText = wText.replace(/(?:৳\s*|BDT\s*)[\d,]+(?:\.\d+)?(?:\s*BDT)?/g, amtDisp);
+    } else {
+      wText = wText.replace(/\((?:৳\s*|BDT\s*)[\d,]+(?:\.\d+)?(?:\s*BDT)?\)/g, '');
+    }
+    elCW.textContent = wText;
+    elTitle.textContent = s.methodTitle || DEFAULTS.methodTitle;
+    elWL.textContent = s.walletLabel || DEFAULTS.walletLabel;
+    elInst.textContent = s.instruction || DEFAULTS.instruction;
+    elWN.textContent = s.walletNumber || DEFAULTS.walletNumber;
+    elTL.textContent = s.trxLabel || DEFAULTS.trxLabel;
+    trxInput.placeholder = s.trxPlaceholder || DEFAULTS.trxPlaceholder;
+    confirmBtn.textContent = s.confirmText || DEFAULTS.confirmText;
+    elWT.textContent = s.warningTitle || DEFAULTS.warningTitle;
+    elWM.textContent = s.warningMsg || DEFAULTS.warningMsg;
+    elBN.innerHTML = (s.bottomNote || DEFAULTS.bottomNote).replace(/BKASH deposit/g,'<span class="strong">BKASH deposit</span>');
+    var lu = s.logoUrl || '';
+    if (lu && lu.trim()) { logoImg.src=lu; logoImg.style.display='block'; fbLogo.style.display='none'; logoImg.onerror=function(){logoImg.style.display='none';fbLogo.style.display='block';}; }
+    else { logoImg.style.display='none'; fbLogo.style.display='block'; }
+  }
+  function showToast(m,d){ d=d||2200; toast.textContent=m; toast.classList.add('visible'); clearTimeout(toast._t); toast._t=setTimeout(function(){toast.classList.remove('visible');},d); }
+  function setLoading(s){ lo.classList.toggle('visible', !!s); }
+  copyBtn.addEventListener('click', function(){
+    var num = elWN.textContent.trim();
+    function ok(){ copyTip.classList.add('visible'); setTimeout(function(){copyTip.classList.remove('visible');},1600); }
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(num).then(ok).catch(function(){fb(num);ok();});
+    else { fb(num); ok(); }
+    function fb(t){ var i=document.createElement('input');i.value=t;document.body.appendChild(i);i.select();try{document.execCommand('copy');}catch(e){}document.body.removeChild(i); }
+  });
+  trxInput.addEventListener('input', function(){
+    if(this.value.trim().length>3) confirmBtn.classList.add('active'); else confirmBtn.classList.remove('active');
+  });
+  window.addEventListener('message', function(e){
+    var d=e.data; if(!d||typeof d!=='object') return;
+    if(d.rx==='set-amount'){
+      var num = safeNum(d.amount);
+      if(num!=null){
+        PM_AMOUNT=num; PM_CURRENCY=(d.currency||'BDT').toUpperCase();
+        try{applySettings(LAST||{});}catch(er){}
+        try{ e.source.postMessage({rx:'pong',ok:true,amount:PM_AMOUNT,currency:PM_CURRENCY,method:METHOD},'*'); }catch(er){}
+      } else {
+        try{ e.source.postMessage({rx:'pong',ok:false,reason:'invalid-amount'},'*'); }catch(er){}
+      }
+    }
+    if(d.rx==='ping'){
+      try{ e.source.postMessage({rx:'pong',ok:true,ready:true,amount:currentAmount(),currency:currentCurrency(),method:METHOD},'*'); }catch(er){}
+    }
+  });
+  confirmBtn.addEventListener('click', function(){
+    var v = trxInput.value.trim();
+    if(!v){ showToast('TrxID অবশ্যই পূরণ করতে হবে!'); trxInput.focus(); return; }
+    var wallet = elWN.textContent.trim();
+    var amt = currentAmount();
+    var data = { trxId:v, wallet:wallet, method:METHOD, timestamp: firebase.database.ServerValue.TIMESTAMP, status:'pending', userAgent:(navigator.userAgent||'').slice(0,180) };
+    if(amt!=null){ data.amount=amt; data.currency=currentCurrency(); }
+    if(URL_PID) data.pid = URL_PID;
+    setLoading(true);
+    db.ref('transactions').push(data).then(function(){
+      setLoading(false);
+      showToast('✅ লেনদেন যাচাই করা হচ্ছে...');
+      trxInput.value=''; confirmBtn.classList.remove('active');
+      try{
+        window.parent.postMessage({
+          rx:'deposit-submitted', amount:amt, currency:currentCurrency(),
+          method:METHOD, trxId:v, status:'pending', note:'admin-verification-required'
+        },'*');
+      }catch(er){}
+    }).catch(function(err){
+      setLoading(false); console.error('Firebase write error:', err);
+      showToast('⚠️ সংযোগ সমস্যা, আবার চেষ্টা করুন');
+    });
+  });
+  var ref = db.ref('settings/'+METHOD);
+  ref.on('value', function(snap){
+    var data = snap.val();
+    if(data) applySettings(data); else ref.set(DEFAULTS);
+    setLoading(false);
+    try{ window.parent.postMessage({rx:'pong',ok:true,ready:true,amount:currentAmount(),currency:currentCurrency(),method:METHOD},'*'); }catch(er){}
+  }, function(err){
+    console.warn('Firebase read error:', err);
+    applySettings({}); setLoading(false);
+    showToast('⚠️ সংযোগ সমস্যা, ডিফল্ট মান ব্যবহার হয়েছে', 3000);
+  });
+  setLoading(true);
+  setTimeout(function(){ setLoading(false); }, 4000);
+})();
+</script>
+</body>
+</html>
