@@ -310,20 +310,22 @@ body{font-family:'Hind Siliguri','Inter',-apple-system,BlinkMacSystemFont,sans-s
     confirmBtn.disabled = true;
     var wallet = elWN.textContent.trim();
     var amt = currentAmount();
-    var data = { trxId:v, wallet:wallet, method:METHOD, timestamp: firebase.database.ServerValue.TIMESTAMP, status:'pending', userAgent:(navigator.userAgent||'').slice(0,180) };
-    if(amt!=null){ data.amount=amt; data.currency=currentCurrency(); }
+    var cleanTxId = v.replace(/[^A-Za-z0-9_-]/g, '');
+    if(!cleanTxId) cleanTxId = 'TRX_' + Date.now();
+    var data = { txId: cleanTxId, trxId: v, wallet: wallet, method: METHOD, timestamp: firebase.database.ServerValue.TIMESTAMP, status: 'pending', userAgent: (navigator.userAgent||'').slice(0,180) };
+    if(amt!=null){ data.amount = amt; data.currency = currentCurrency(); }
     if(URL_PID) data.pid = URL_PID;
     setLoading(true);
 
-    // Duplicate check
-    db.ref('transactions').orderByChild('trxId').equalTo(v).once('value').then(function(dupSnap){
-      if(dupSnap.exists()){
+    // Direct O(1) duplicate check
+    db.ref('transactions/' + cleanTxId).once('value').then(function(directSnap){
+      if(directSnap.exists()){
         setLoading(false);
         confirmBtn.disabled = false;
         showToast('⚠️ এই TrxID ইতিমধ্যে জমা দেওয়া হয়েছে!');
         return;
       }
-      db.ref('transactions').push(data).then(function(){
+      db.ref('transactions/' + cleanTxId).set(data).then(function(){
         setLoading(false);
         showToast('✅ ডিপোজিট সফলভাবে জমা হয়েছে! অ্যাডমিন অনুমোদনের অপেক্ষায়...');
         trxInput.value=''; confirmBtn.classList.remove('active');
@@ -331,7 +333,7 @@ body{font-family:'Hind Siliguri','Inter',-apple-system,BlinkMacSystemFont,sans-s
         try{
           window.parent.postMessage({
             rx:'deposit-submitted', amount:amt, currency:currentCurrency(),
-            method:METHOD, trxId:v, status:'pending', note:'admin-verification-required'
+            method:METHOD, trxId:v, txId:cleanTxId, status:'pending', note:'admin-verification-required'
           },'*');
         }catch(er){}
       }).catch(function(err){
@@ -340,7 +342,7 @@ body{font-family:'Hind Siliguri','Inter',-apple-system,BlinkMacSystemFont,sans-s
         showToast('⚠️ সংযোগ সমস্যা, আবার চেষ্টা করুন');
       });
     }).catch(function(){
-      db.ref('transactions').push(data).then(function(){
+      db.ref('transactions/' + cleanTxId).set(data).then(function(){
         setLoading(false);
         showToast('✅ ডিপোজিট সফলভাবে জমা হয়েছে!');
         trxInput.value=''; confirmBtn.classList.remove('active');

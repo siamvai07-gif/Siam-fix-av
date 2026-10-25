@@ -229,7 +229,8 @@ export const handler = async (event: any) => {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          status: "approved",
+          status: "confirmed",
+          confirmedAt: Date.now(),
           approvedAt: Date.now(),
           creditedPid: pid,
           creditedAmount: amt
@@ -239,7 +240,7 @@ export const handler = async (event: any) => {
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify({ ok: true, txId, pid, amount: amt, newBalance: newBal })
+        body: JSON.stringify({ ok: true, txId, pid, amount: amt, newBalance: newBal, status: "confirmed" })
       };
     }
 
@@ -257,6 +258,122 @@ export const handler = async (event: any) => {
           reason: String(body.reason || "Rejected by admin").slice(0, 300)
         })
       });
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ ok: true, txId, status: "rejected" })
+      };
+    }
+
+    if (action === "withdrawals.approve") {
+      const txId = String(body.txId || "");
+      if (!txId) {
+        return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: "txId required" }) };
+      }
+      let path = `transactions/${txId}`;
+      let txRes = await fetch(`${DATABASE_URL}/${path}.json`);
+      let tx = await txRes.json();
+      if (!tx) {
+        const allRes = await fetch(`${DATABASE_URL}/transactions.json`);
+        const allVal = (await allRes.json()) || {};
+        for (const [k, v] of Object.entries(allVal)) {
+          if (k === txId) { tx = v; path = `transactions/${k}`; break; }
+        }
+      }
+      if (!tx) {
+        return { statusCode: 404, headers, body: JSON.stringify({ ok: false, error: "Transaction not found" }) };
+      }
+      if (tx.status && tx.status !== "pending") {
+        return { statusCode: 409, headers, body: JSON.stringify({ ok: false, error: "Already processed: " + tx.status }) };
+      }
+
+      const pid = String(body.pid || tx.pid || tx.wallet || "").trim();
+      const amt = Math.round(Number(body.amount != null ? body.amount : tx.amount));
+      if (!/^[A-Za-z0-9_-]{3,32}$/.test(pid)) {
+        return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: "Invalid pid" }) };
+      }
+      if (!isFinite(amt) || amt <= 0) {
+        return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: "Invalid amount" }) };
+      }
+
+      const userRes = await fetch(`${DATABASE_URL}/users/${pid}.json`);
+      const user = (await userRes.json()) || { balance: 0, total_withdraw: 0 };
+      const curBal = Number(user.balance) || 0;
+
+      let newBal = curBal;
+      if (!tx.withheld) {
+        if (curBal < amt) {
+          return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: "Insufficient user balance" }) };
+        }
+        newBal = curBal - amt;
+      }
+      const newWith = (Number(user.total_withdraw) || 0) + amt;
+
+      await fetch(`${DATABASE_URL}/users/${pid}.json`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ balance: newBal, total_withdraw: newWith, lastAdjusted: Date.now() })
+      });
+
+      await fetch(`${DATABASE_URL}/${path}.json`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "confirmed", confirmedAt: Date.now(), approvedAt: Date.now() })
+      });
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ ok: true, txId, pid, amount: amt, status: "confirmed", balance: newBal })
+      };
+    }
+
+    if (action === "withdrawals.reject") {
+      const txId = String(body.txId || "");
+      if (!txId) {
+        return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: "txId required" }) };
+      }
+      let path = `transactions/${txId}`;
+      let txRes = await fetch(`${DATABASE_URL}/${path}.json`);
+      let tx = await txRes.json();
+      if (!tx) {
+        const allRes = await fetch(`${DATABASE_URL}/transactions.json`);
+        const allVal = (await allRes.json()) || {};
+        for (const [k, v] of Object.entries(allVal)) {
+          if (k === txId) { tx = v; path = `transactions/${k}`; break; }
+        }
+      }
+      if (!tx) {
+        return { statusCode: 404, headers, body: JSON.stringify({ ok: false, error: "Transaction not found" }) };
+      }
+      if (tx.status && tx.status !== "pending") {
+        return { statusCode: 409, headers, body: JSON.stringify({ ok: false, error: "Already processed: " + tx.status }) };
+      }
+
+      const pid = String(body.pid || tx.pid || tx.wallet || "").trim();
+      const amt = Math.round(Number(body.amount != null ? body.amount : tx.amount));
+
+      if (tx.withheld && pid && amt > 0) {
+        const userRes = await fetch(`${DATABASE_URL}/users/${pid}.json`);
+        const user = (await userRes.json()) || { balance: 0 };
+        const newBal = (Number(user.balance) || 0) + amt;
+        await fetch(`${DATABASE_URL}/users/${pid}.json`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ balance: newBal, lastAdjusted: Date.now() })
+        });
+      }
+
+      await fetch(`${DATABASE_URL}/${path}.json`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "rejected",
+          rejectedAt: Date.now(),
+          reason: String(body.reason || "Rejected by admin").slice(0, 300)
+        })
+      });
+
       return {
         statusCode: 200,
         headers,

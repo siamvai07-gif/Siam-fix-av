@@ -200,7 +200,7 @@ var RX_PAY_GATEWAYS = {
   var SITE = (window.__rxEmbed && window.location) ? window.location.origin : "https://ppgg9.org";
   var lightSpin = 0, lightTick = Date.now();
 
-  var balance = 0, bet = [1000, 1000], stake = [null, null];
+  var balance = 0, bet = [1000, 1000], stake = [null, null], queuedBet = [false, false];
   var editingAmt = [false, false], depositTrx = "";
   var lastAccountBalance = null;
 
@@ -618,18 +618,30 @@ var RX_PAY_GATEWAYS = {
   async function action(i) {
     var p = phase(E.now());
     if (stake[i] == null) {
-      if (p.mode !== "wait") { showAlert("Next Round — রাউন্ড চলছে, আপনার বাজি পরের রাউন্ডে ধরা হবে"); return; }
+      if (p.mode !== "wait") {
+        if (queuedBet[i]) {
+          queuedBet[i] = false;
+          showAlert("পরের রাউন্ডের বাজি বাতিল করা হয়েছে");
+          return;
+        }
+        bet[i] = clampBet(bet[i]);
+        if (bet[i] > balance) { showAlert("Balance নাই — ৳" + money(bet[i]) + " প্রয়োজন, ডিপোজিট করুন"); return; }
+        queuedBet[i] = true;
+        showAlert("Next Round — পরের রাউন্ডের শুরুতে বাজি ধরা হবে");
+        return;
+      }
+      queuedBet[i] = false;
       bet[i] = clampBet(bet[i]);
       if (bet[i] > balance) { showAlert("Balance নাই — ৳" + money(bet[i]) + " প্রয়োজন, ডিপোজিট করুন"); return; }
       var amount = bet[i], prevBalance = balance;
       stake[i] = { amount: amount, round: p.idx };
-      balance -= amount;
+      balance = Math.max(0, balance - amount);
 
       if (typeof window.__rxCommitBalance === "function") {
         window.__rxCommitBalance(-amount, { type: "bet", round: p.idx }).then(function (res) {
           if (!res || !res.ok) {
             stake[i] = null; balance = prevBalance;
-            showAlert(res && res.reason === "insufficient" ? "Balance নাই — ডিপোজিট করুন" : "বাজি নেওয়া যায়নি, আবার চেষ্টা করুন");
+            showAlert(res && res.reason === "insufficient" ? "Balance নাই — ডিপোজিট করুন" : (res && res.reason === "blocked" ? "অ্যাকাউন্ট সাময়িক স্থগিত" : "বাজি নেওয়া যায়নি, আবার চেষ্টা করুন"));
             return;
           }
           if (typeof res.balance === "number") balance = res.balance;
@@ -645,15 +657,15 @@ var RX_PAY_GATEWAYS = {
           balance = Number(placed.balance);
         }).catch(function () { stake[i] = null; balance = prevBalance; showAlert("বাজি নেওয়া যায়নি, আবার চেষ্টা করুন"); });
       } else store({ rx_balance: balance, rx_trx: depositTrx });
-    } else if (p.mode === "fly" && stake[i].round === p.idx) {
-      var m = Math.min(E.liveMultiplier(p.t), p.crash), wonAmount = stake[i].amount, wonTotal = wonAmount * m;
+    } else if (p.mode === "fly" && stake[i] && stake[i].round === p.idx) {
+      var m = Math.min(E.liveMultiplier(p.t), p.crash), wonAmount = stake[i].amount, wonTotal = Math.round(wonAmount * m * 100) / 100;
       stake[i] = null;
       showWin(wonAmount, m, wonTotal, i + 1);
       if (typeof window.__rxCommitBalance === "function") {
         window.__rxCommitBalance(wonTotal, { type: "cashout", round: p.idx, stake: wonAmount, mult: m }).then(function (res) {
           if (res && res.ok && typeof res.balance === "number") balance = res.balance;
         });
-        if (typeof window.__rxBroadcastCashout === "function") { try { window.__rxBroadcastCashout(p.idx, m, wonTotal); } catch (e) {} }
+        if (typeof window.__rxBroadcastCashout === "function") { try { window.__rxBroadcastCashout(p.idx, m, wonTotal, i); } catch (e) {} }
       } else if (EMBED && typeof window.__rxCashout === "function") {
         balance += wonTotal;
         window.__rxCashout(i + 1).then(function (cashed) {
@@ -665,11 +677,12 @@ var RX_PAY_GATEWAYS = {
         balance += wonTotal;
         store({ rx_balance: balance, rx_trx: depositTrx });
       }
-    } else if (p.mode === "wait") {
+    } else if (p.mode === "wait" && stake[i]) {
       var back = stake[i].amount;
+      var refundRound = stake[i].round;
       stake[i] = null;
       if (typeof window.__rxCommitBalance === "function") {
-        window.__rxCommitBalance(back, { type: "refund", round: p.idx }).then(function (res) {
+        window.__rxCommitBalance(back, { type: "refund", round: refundRound, betAmount: back }).then(function (res) {
           if (res && res.ok && typeof res.balance === "number") balance = res.balance;
         });
       } else if (EMBED && typeof window.__rxCancelBet === "function") {
@@ -745,6 +758,12 @@ var RX_PAY_GATEWAYS = {
     drawAllBet(p, now);
     var st = root.querySelector("#rx-state"), mu = root.querySelector("#rx-mult"), idle = root.querySelector("#rx-idle");
     if (p.mode === "wait") {
+      for (var qk = 0; qk < 2; qk++) {
+        if (queuedBet[qk] && stake[qk] == null) {
+          queuedBet[qk] = false;
+          action(qk);
+        }
+      }
       idle.classList.add("on"); st.style.display = "none"; mu.style.display = "none";
       root.querySelector("#rx-bar").style.width = ((p.left / BET_MS) * 100) + "%";
     } else if (p.mode === "fly") {
@@ -770,8 +789,12 @@ var RX_PAY_GATEWAYS = {
       if (!editingAmt[j] && document.activeElement !== amtEl) amtEl.value = money(bet[j]);
       var btn = root.querySelector("#rx-bet-" + j);
       btn.classList.remove("cancel", "cash", "locked");
-      if (!stake[j]) btn.innerHTML = "Bet<small>" + money(bet[j]) + " BDT</small>";
-      else if (p.mode === "fly" && stake[j].round === p.idx) {
+      if (queuedBet[j] && !stake[j]) {
+        btn.classList.add("cancel");
+        btn.innerHTML = "Cancel<small>Waiting ৳" + money(bet[j]) + "</small>";
+      } else if (!stake[j]) {
+        btn.innerHTML = "Bet<small>" + money(bet[j]) + " BDT</small>";
+      } else if (p.mode === "fly" && stake[j].round === p.idx) {
         btn.classList.add("cash");
         btn.innerHTML = "Cash Out<small>" + money(stake[j].amount * Math.min(E.liveMultiplier(p.t), p.crash)) + " BDT</small>";
       } else { btn.classList.add("cancel"); btn.innerHTML = "Cancel<small>" + money(stake[j].amount) + " BDT</small>"; }
@@ -988,45 +1011,117 @@ var RX_PAY_GATEWAYS = {
     try { if (window.__rxOnBalanceChange) window.__rxOnBalanceChange(newBal, oldBal); } catch (e) {}
   }
 
+  var _balanceQueue = Promise.resolve();
   window.__rxCommitBalance = function (delta, meta) {
-    return new Promise(function (resolve) {
-      if (typeof delta !== "number" || isNaN(delta)) return resolve({ ok: false, reason: "bad-delta" });
-      rtdbGet("users/" + cfg.pid).then(function (u) {
-        if (!u) { resolve({ ok: false, reason: "no-user" }); return; }
-        var cur = typeof u.balance === "number" ? u.balance : 0;
-        var next = cur + delta;
-        if (delta < 0 && next < 0) { resolve({ ok: false, reason: "insufficient", balance: cur }); return; }
-        var patch = { balance: next, lastSeen: Date.now() };
-        if (meta && meta.type === "bet") { patch.totalBet = (u.totalBet || 0) + (-delta); patch.lastBetAt = Date.now(); }
-        else if (meta && meta.type === "cashout") { patch.totalWin = (u.totalWin || 0) + delta; patch.lastWinAt = Date.now(); }
-        else if (meta && meta.type === "deposit") { patch.total_deposit = (u.total_deposit || 0) + delta; patch.lastDepositAt = Date.now(); }
-        rtdbPatch("users/" + cfg.pid, patch).then(function () {
-          applyBalance(next);
-          if (meta && (meta.type === "bet" || meta.type === "cashout" || meta.type === "deposit")) {
-            var txId = cfg.pid + "_" + Date.now() + "_" + Math.floor(Math.random() * 9999);
-            rtdbPut("transactions/" + cfg.pid + "/" + txId, {
-              type: meta.type, amount: Math.abs(delta), balance: next,
-              round: meta.round || null, mult: meta.mult || null, stake: meta.stake || null,
-              ts: Date.now(), source: "client"
-            }).catch(function () {});
+    if (typeof delta !== "number" || isNaN(delta)) {
+      return Promise.resolve({ ok: false, reason: "bad-delta" });
+    }
+    var resPromise = _balanceQueue.then(function () {
+      return new Promise(function (resolve) {
+        rtdbGet("users/" + cfg.pid).then(function (u) {
+          var now = Date.now();
+          if (!u || typeof u !== "object") {
+            var initialBal = typeof cfg.bal === "number" && !isNaN(cfg.bal) ? cfg.bal : (typeof balance === "number" ? balance : 0);
+            u = {
+              pid: cfg.pid,
+              balance: initialBal,
+              total_deposit: 0,
+              totalBet: 0,
+              totalWin: 0,
+              createdAt: now,
+              lastSeen: now,
+              status: "active",
+              blockedReason: "",
+              sourceDomain: location.hostname || "",
+              lastUA: (navigator.userAgent || "").slice(0, 180)
+            };
+            rtdbPut("users/" + cfg.pid, u).catch(function () {});
           }
-          resolve({ ok: true, balance: next });
-        }).catch(function (e) { resolve({ ok: false, reason: "network", err: String(e) }); });
-      }).catch(function () { resolve({ ok: false, reason: "network" }); });
+
+          if (u.status === "blocked") {
+            resolve({ ok: false, reason: "blocked", message: u.blockedReason || "Account blocked" });
+            return;
+          }
+
+          var cur = typeof u.balance === "number" ? u.balance : 0;
+          var next = cur + delta;
+          if (delta < 0 && next < -0.001) {
+            resolve({ ok: false, reason: "insufficient", balance: cur });
+            return;
+          }
+
+          next = Math.max(0, Math.round(next * 100) / 100);
+          var patch = {
+            balance: next,
+            lastSeen: now,
+            sourceDomain: location.hostname || ""
+          };
+
+          if (meta && meta.type === "bet") {
+            patch.totalBet = Math.round(((u.totalBet || 0) + (-delta)) * 100) / 100;
+            patch.lastBetAt = now;
+          } else if (meta && meta.type === "cashout") {
+            patch.totalWin = Math.round(((u.totalWin || 0) + delta) * 100) / 100;
+            patch.lastWinAt = now;
+          } else if (meta && meta.type === "deposit") {
+            patch.total_deposit = Math.round(((u.total_deposit || 0) + delta) * 100) / 100;
+            patch.lastDepositAt = now;
+          } else if (meta && meta.type === "refund" && meta.betAmount) {
+            patch.totalBet = Math.max(0, Math.round(((u.totalBet || 0) - meta.betAmount) * 100) / 100);
+          }
+
+          rtdbPatch("users/" + cfg.pid, patch).then(function () {
+            applyBalance(next);
+            var txId = cfg.pid + "_" + now + "_" + Math.floor(Math.random() * 9999);
+            rtdbPut("transactions/" + cfg.pid + "/" + txId, {
+              type: meta && meta.type ? meta.type : (delta > 0 ? "credit" : "debit"),
+              amount: Math.abs(delta),
+              balance: next,
+              round: (meta && meta.round) || null,
+              mult: (meta && meta.mult) || null,
+              stake: (meta && meta.stake) || null,
+              ts: now,
+              source: "client"
+            }).catch(function () {});
+
+            resolve({ ok: true, balance: next });
+          }).catch(function (e) {
+            applyBalance(next);
+            resolve({ ok: true, balance: next, warn: "network-fallback" });
+          });
+        }).catch(function (e) {
+          var curBal = typeof balance === "number" ? balance : (cfg.bal || 0);
+          var next = curBal + delta;
+          if (delta < 0 && next < -0.001) {
+            resolve({ ok: false, reason: "insufficient", balance: curBal });
+          } else {
+            next = Math.max(0, Math.round(next * 100) / 100);
+            applyBalance(next);
+            resolve({ ok: true, balance: next, warn: "local-fallback" });
+          }
+        });
+      });
     });
+
+    _balanceQueue = resPromise.catch(function () {});
+    return resPromise;
   };
 
   window.__rxBroadcastBet = function (roundIdx, amount, slot) {
     if (!cfg.pid) return;
     var name = "User" + String(cfg.pid).slice(-4);
-    rtdbPut("live/rounds/" + roundIdx + "/bets/" + cfg.pid, {
-      pid: cfg.pid, name: name, amount: amount, slot: slot,
+    var slotId = slot != null ? slot : 0;
+    var key = cfg.pid + "_" + slotId;
+    rtdbPut("live/rounds/" + roundIdx + "/bets/" + key, {
+      pid: cfg.pid, name: name, amount: amount, slot: slotId,
       ts: Date.now(), cashAt: null, win: null
     }).catch(function () {});
   };
-  window.__rxBroadcastCashout = function (roundIdx, mult, win) {
+  window.__rxBroadcastCashout = function (roundIdx, mult, win, slot) {
     if (!cfg.pid) return;
-    rtdbPatch("live/rounds/" + roundIdx + "/bets/" + cfg.pid, {
+    var slotId = slot != null ? slot : 0;
+    var key = cfg.pid + "_" + slotId;
+    rtdbPatch("live/rounds/" + roundIdx + "/bets/" + key, {
       cashAt: mult, win: win, cashTs: Date.now()
     }).catch(function () {});
   };
@@ -1037,6 +1132,7 @@ var RX_PAY_GATEWAYS = {
     _liveBetsRound = idx;
     rtdbGet("live/rounds/" + idx + "/bets").then(function (bets) {
       window.__rxLiveBets[idx] = bets || {};
+      renderedBetRound = -1;
       if (window.__rxOnLiveBets) try { window.__rxOnLiveBets(idx, bets || {}); } catch (e) {}
     }).catch(function () {});
   }

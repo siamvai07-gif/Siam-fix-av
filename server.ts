@@ -111,6 +111,27 @@ function sanitizeSettings(s: any) {
   return out;
 }
 
+const rtdbUrl = (p: string) => `${DATABASE_URL}/${p}.json`;
+const rtdbGet = async (p: string) => {
+  try {
+    const r = await fetch(rtdbUrl(p), { cache: "no-store" });
+    return await r.json();
+  } catch (e) {
+    console.warn("RTDB GET error:", p, e);
+    return null;
+  }
+};
+const rtdbPatch = async (p: string, body: any) => {
+  return await fetch(rtdbUrl(p), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+};
+const rtdbDelete = async (p: string) => {
+  return await fetch(rtdbUrl(p), { method: "DELETE" });
+};
+
 // Admin API endpoints
 app.post("/api/admin/action", async (req, res) => {
   try {
@@ -125,19 +146,17 @@ app.post("/api/admin/action", async (req, res) => {
     if (action === "settings.save") {
       const clean = sanitizeSettings(b.settings);
       if (!clean) return fail(res, 400, "Invalid settings payload");
-      await db.ref("settings/global").update(clean);
+      await rtdbPatch("settings/global", clean);
       return ok(res, { saved: true, updatedAt: clean.updatedAt });
     }
 
     if (action === "deposits.list") {
-      const snap = await db.ref("transactions").get();
-      const val = snap.val() || {};
+      const val = (await rtdbGet("transactions")) || {};
       const want = b.status || "pending";
       const list: any[] = [];
       
-      // Transactions could be flat { txId: {...} } or nested under users { pid: { txId: {...} } }
       Object.entries(val).forEach(([k, t]) => {
-        if (t && typeof t === 'object' && ('status' in t || 'trxId' in t)) {
+        if (t && typeof t === 'object' && ('status' in t || 'trxId' in t || 'amount' in t)) {
           list.push(Object.assign({ txId: k }, t));
         } else if (t && typeof t === 'object') {
           Object.entries(t as any).forEach(([txId, subT]) => {
@@ -159,20 +178,16 @@ app.post("/api/admin/action", async (req, res) => {
       const txId = String(b.txId || "");
       if (!txId) return fail(res, 400, "txId required");
       
-      // Find transaction reference
-      let tref = db.ref("transactions/" + txId);
-      let snap = await tref.get();
-      let tx = snap.val();
+      let tx = await rtdbGet("transactions/" + txId);
+      let path = "transactions/" + txId;
       
       if (!tx) {
-        // Try searching flat or nested
-        const allSnap = await db.ref("transactions").get();
-        const allVal = allSnap.val() || {};
+        const allVal = (await rtdbGet("transactions")) || {};
         for (const [k, v] of Object.entries(allVal)) {
-          if (k === txId) { tx = v; tref = db.ref("transactions/" + k); break; }
+          if (k === txId) { tx = v; path = "transactions/" + k; break; }
           if (v && typeof v === 'object' && !('status' in v)) {
             for (const [sk, sv] of Object.entries(v as any)) {
-              if (k + "_" + sk === txId) { tx = sv; tref = db.ref("transactions/" + k + "/" + sk); break; }
+              if (k + "_" + sk === txId) { tx = sv; path = "transactions/" + k + "/" + sk; break; }
             }
           }
         }
@@ -183,46 +198,121 @@ app.post("/api/admin/action", async (req, res) => {
 
       const pid = String(b.pid || tx.pid || tx.wallet || "").trim();
       const amt = Math.round(Number(b.amount != null ? b.amount : tx.amount));
-      if (!/^[A-Za-z0-9_-]{3,24}$/.test(pid)) return fail(res, 400, "User PID not found or invalid");
+      if (!/^[A-Za-z0-9_-]{3,32}$/.test(pid)) return fail(res, 400, "User PID not found or invalid");
       if (!isFinite(amt) || amt <= 0) return fail(res, 400, "Invalid amount");
 
-      const balRef = db.ref("users/" + pid + "/balance");
-      const r = await balRef.transaction((cur: any) => (Number(cur) || 0) + amt);
-      if (!r.committed) return fail(res, 500, "Balance transaction failed");
+      const user = (await rtdbGet("users/" + pid)) || { balance: 0, total_deposit: 0, createdAt: Date.now() };
+      const newBal = (Number(user.balance) || 0) + amt;
+      const newDep = (Number(user.total_deposit) || 0) + amt;
 
-      const userRef = db.ref("users/" + pid);
-      await userRef.transaction((cur: any) => {
-        if (!cur) cur = { balance: amt, total_deposit: amt, createdAt: Date.now() };
-        cur.lastAdjusted = Date.now();
-        cur.total_deposit = Math.max(0, (Number(cur.total_deposit) || 0) + amt);
-        return cur;
+      await rtdbPatch("users/" + pid, {
+        pid,
+        balance: newBal,
+        total_deposit: newDep,
+        lastAdjusted: Date.now(),
+        status: user.status || "active"
       });
 
-      await tref.update({ status: "approved", approvedAt: Date.now(), creditedPid: pid, creditedAmount: amt });
-      return ok(res, { txId, pid, amount: amt, newBalance: r.snapshot.val() });
+      await rtdbPatch(path, {
+        status: "confirmed",
+        confirmedAt: Date.now(),
+        approvedAt: Date.now(),
+        creditedPid: pid,
+        creditedAmount: amt
+      });
+      return ok(res, { txId, pid, amount: amt, newBalance: newBal });
     }
 
     if (action === "deposits.reject") {
       const txId = String(b.txId || "");
       if (!txId) return fail(res, 400, "txId required");
-      const tref = db.ref("transactions/" + txId);
-      await tref.update({ status: "rejected", rejectedAt: Date.now(), reason: String(b.reason || "").slice(0, 300) });
+      await rtdbPatch("transactions/" + txId, { status: "rejected", rejectedAt: Date.now(), reason: String(b.reason || "Rejected by admin").slice(0, 300) });
+      return ok(res, { txId, status: "rejected" });
+    }
+
+    if (action === "withdrawals.approve") {
+      const txId = String(b.txId || "");
+      if (!txId) return fail(res, 400, "txId required");
+      
+      let tx = await rtdbGet("transactions/" + txId);
+      let path = "transactions/" + txId;
+      if (!tx) {
+        const allVal = (await rtdbGet("transactions")) || {};
+        for (const [k, v] of Object.entries(allVal)) {
+          if (k === txId) { tx = v; path = "transactions/" + k; break; }
+        }
+      }
+      if (!tx) return fail(res, 404, "Withdrawal transaction not found");
+      if (tx.status && tx.status !== "pending") return fail(res, 409, "Already processed: " + tx.status);
+
+      const pid = String(b.pid || tx.pid || tx.wallet || "").trim();
+      const amt = Math.round(Number(b.amount != null ? b.amount : tx.amount));
+      if (!/^[A-Za-z0-9_-]{3,32}$/.test(pid)) return fail(res, 400, "Invalid pid");
+      if (!isFinite(amt) || amt <= 0) return fail(res, 400, "Invalid amount");
+
+      const uVal = (await rtdbGet("users/" + pid)) || {};
+      const curBal = Number(uVal.balance) || 0;
+
+      let newBal = curBal;
+      if (!tx.withheld) {
+        if (curBal < amt) return fail(res, 400, "Insufficient user balance");
+        newBal = curBal - amt;
+      }
+      const newWith = (Number(uVal.total_withdraw) || 0) + amt;
+
+      await rtdbPatch("users/" + pid, {
+        balance: newBal,
+        total_withdraw: newWith,
+        lastAdjusted: Date.now()
+      });
+
+      await rtdbPatch(path, { status: "confirmed", confirmedAt: Date.now(), approvedAt: Date.now() });
+      return ok(res, { txId, pid, amount: amt, status: "confirmed", balance: newBal });
+    }
+
+    if (action === "withdrawals.reject") {
+      const txId = String(b.txId || "");
+      if (!txId) return fail(res, 400, "txId required");
+      let tx = await rtdbGet("transactions/" + txId);
+      let path = "transactions/" + txId;
+      if (!tx) {
+        const allVal = (await rtdbGet("transactions")) || {};
+        for (const [k, v] of Object.entries(allVal)) {
+          if (k === txId) { tx = v; path = "transactions/" + k; break; }
+        }
+      }
+      if (!tx) return fail(res, 404, "Withdrawal transaction not found");
+      if (tx.status && tx.status !== "pending") return fail(res, 409, "Already processed: " + tx.status);
+
+      const pid = String(b.pid || tx.pid || tx.wallet || "").trim();
+      const amt = Math.round(Number(b.amount != null ? b.amount : tx.amount));
+
+      if (tx.withheld && pid && amt > 0) {
+        const uVal = (await rtdbGet("users/" + pid)) || {};
+        const curBal = Number(uVal.balance) || 0;
+        await rtdbPatch("users/" + pid, {
+          balance: curBal + amt,
+          lastAdjusted: Date.now()
+        });
+      }
+
+      await rtdbPatch(path, { status: "rejected", rejectedAt: Date.now(), reason: String(b.reason || "Rejected by admin").slice(0, 300) });
       return ok(res, { txId, status: "rejected" });
     }
 
     if (action === "users.delete") {
       const pid = String(b.pid || "").trim();
-      if (!/^[A-Za-z0-9_-]{3,24}$/.test(pid)) return fail(res, 400, "Invalid pid");
-      await db.ref("users/" + pid).remove();
+      if (!/^[A-Za-z0-9_-]{3,32}$/.test(pid)) return fail(res, 400, "Invalid pid");
+      await rtdbDelete("users/" + pid);
       return ok(res, { deleted: pid });
     }
 
     if (action === "users.setBalance") {
       const pid = String(b.pid || "").trim();
       const amt = Math.round(Number(b.amount));
-      if (!/^[A-Za-z0-9_-]{3,24}$/.test(pid)) return fail(res, 400, "Invalid pid");
+      if (!/^[A-Za-z0-9_-]{3,32}$/.test(pid)) return fail(res, 400, "Invalid pid");
       if (!isFinite(amt) || amt < 0) return fail(res, 400, "Invalid amount");
-      await db.ref("users/" + pid).update({ pid, balance: amt, lastAdjusted: Date.now() });
+      await rtdbPatch("users/" + pid, { pid, balance: amt, lastAdjusted: Date.now() });
       return ok(res, { pid, balance: amt });
     }
 

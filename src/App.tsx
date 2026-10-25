@@ -39,6 +39,9 @@ export default function App() {
   // Admin state
   const [users, setUsers] = useState<any[]>([]);
   const [deposits, setDeposits] = useState<any[]>([]);
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [allTransactions, setAllTransactions] = useState<any[]>([]);
+  const [txSubTab, setTxSubTab] = useState<'deposits' | 'withdrawals' | 'history'>('deposits');
   const [messages, setMessages] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>({
     gateways: {
@@ -158,6 +161,41 @@ export default function App() {
     }
   };
 
+  const handleCreateTestWithdrawal = async (method: 'bkash' | 'nagad', amt: number) => {
+    try {
+      const testTxId = "WTH_" + Math.random().toString(36).substring(2, 9).toUpperCase();
+      const tRef = ref(db, "transactions/" + testTxId);
+      const chosenWallet = method === 'bkash' ? '01854529933' : '01700000000';
+      const targetUser = testPid || simPid;
+
+      const uRef = ref(db, "users/" + targetUser);
+      const uSnap = await get(uRef);
+      const curBal = uSnap.exists() ? (Number(uSnap.val().balance) || 0) : 0;
+      if (curBal < amt) {
+        showToast(`ব্যবহারকারীর পর্যাপ্ত ব্যালেন্স নেই (বর্তমান: ৳${curBal})`, "err");
+        return;
+      }
+      await update(uRef, { balance: curBal - amt, lastAdjusted: Date.now() });
+
+      await set(tRef, {
+        txId: testTxId,
+        wallet: chosenWallet,
+        method,
+        type: 'withdraw',
+        withheld: true,
+        amount: amt,
+        currency: 'BDT',
+        pid: targetUser,
+        timestamp: Date.now(),
+        status: 'pending',
+        userAgent: (navigator.userAgent || '').slice(0, 100)
+      });
+      showToast(`সফল! টেস্ট ${method.toUpperCase()} উইথড্র (${testTxId}) তৈরি হয়েছে`);
+    } catch (e: any) {
+      showToast("টেস্ট উইথড্র তৈরিতে সমস্যা: " + e.message, "err");
+    }
+  };
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (keyInput === ADMIN_KEY) {
@@ -236,7 +274,7 @@ export default function App() {
       const list: any[] = [];
       Object.entries(val).forEach(([k, t]) => {
         const tx = t as any;
-        if (tx && typeof tx === 'object' && ('status' in tx || 'trxId' in tx)) {
+        if (tx && typeof tx === 'object' && ('status' in tx || 'trxId' in tx || 'amount' in tx)) {
           list.push({ txId: k, ...tx });
         } else if (tx && typeof tx === 'object') {
           Object.entries(tx).forEach(([sk, sv]) => {
@@ -247,9 +285,14 @@ export default function App() {
           });
         }
       });
-      const pending = list.filter(t => (t.status || "pending") === "pending");
-      pending.sort((a, b) => (b.timestamp || b.ts || 0) - (a.timestamp || a.ts || 0));
-      setDeposits(pending);
+      list.sort((a, b) => (b.timestamp || b.ts || 0) - (a.timestamp || a.ts || 0));
+      setAllTransactions(list);
+
+      const pendingDeps = list.filter(t => (t.status || "pending") === "pending" && t.type !== "withdraw" && t.type !== "withdrawal");
+      setDeposits(pendingDeps);
+
+      const pendingWiths = list.filter(t => (t.status || "pending") === "pending" && (t.type === "withdraw" || t.type === "withdrawal"));
+      setWithdrawals(pendingWiths);
     });
 
     return () => {
@@ -403,10 +446,16 @@ export default function App() {
         });
 
         const tRef = ref(db, "transactions/" + tx.txId);
-        await update(tRef, { status: "approved", approvedAt: Date.now() });
+        await update(tRef, {
+          status: "confirmed",
+          confirmedAt: Date.now(),
+          approvedAt: Date.now(),
+          creditedPid: pid,
+          creditedAmount: amt
+        });
       }
 
-      showToast(`ডিপোজিট অ্যাপ্রুভড! ৳${amt} ক্রেডিট হয়েছে`);
+      showToast(`ডিপোজিট সফলভাবে নিশ্চিত করা হয়েছে! ৳${amt} ক্রেডিট হয়েছে`);
     } catch (e: any) {
       showToast("ত্রুটি: " + e.message, "err");
     }
@@ -424,9 +473,94 @@ export default function App() {
 
       if (!rejected) {
         const tRef = ref(db, "transactions/" + txId);
-        await update(tRef, { status: "rejected", rejectedAt: Date.now() });
+        await update(tRef, { status: "rejected", rejectedAt: Date.now(), reason: "Rejected by admin" });
       }
       showToast("ডিপোজিট রিজেক্ট করা হয়েছে");
+    } catch (e: any) {
+      showToast("ত্রুটি: " + e.message, "err");
+    }
+  };
+
+  const handleApproveWithdrawal = async (tx: any) => {
+    const pid = tx.pid || tx.wallet;
+    const amt = Number(tx.amount) || 0;
+    if (!pid || amt <= 0) {
+      showToast("উইথড্রয়াল ডেটায় PID বা amount নেই", "err");
+      return;
+    }
+    if (tx.status && tx.status !== "pending") {
+      showToast("এই উইথড্রয়াল ইতিমধ্যে " + tx.status + " হয়েছে!", "err");
+      return;
+    }
+    try {
+      let approved = false;
+      try {
+        const apiRes = await callAdminApi("withdrawals.approve", { txId: tx.txId, pid, amount: amt });
+        if (apiRes && apiRes.ok) approved = true;
+      } catch (err) {
+        console.warn("Backend API withdrawal fallback to client:", err);
+      }
+
+      if (!approved) {
+        const uRef = ref(db, "users/" + pid);
+        const snap = await get(uRef);
+        const cur = snap.val() || { balance: 0, total_withdraw: 0 };
+        const curBal = Number(cur.balance) || 0;
+
+        let newBal = curBal;
+        if (!tx.withheld) {
+          if (curBal < amt) {
+            showToast("ব্যবহারকারীর পর্যাপ্ত ব্যালেন্স নেই!", "err");
+            return;
+          }
+          newBal = curBal - amt;
+        }
+        const newWith = (Number(cur.total_withdraw) || 0) + amt;
+
+        await update(uRef, {
+          balance: newBal,
+          total_withdraw: newWith,
+          lastAdjusted: Date.now()
+        });
+
+        const tRef = ref(db, "transactions/" + tx.txId);
+        await update(tRef, { status: "confirmed", confirmedAt: Date.now(), approvedAt: Date.now() });
+      }
+
+      showToast(`উইথড্রয়াল সফলভাবে নিশ্চিত করা হয়েছে! ৳${amt}`);
+    } catch (e: any) {
+      showToast("ত্রুটি: " + e.message, "err");
+    }
+  };
+
+  const handleRejectWithdrawal = async (tx: any) => {
+    const pid = tx.pid || tx.wallet;
+    const amt = Number(tx.amount) || 0;
+    if (tx.status && tx.status !== "pending") {
+      showToast("এই উইথড্রয়াল ইতিমধ্যে " + tx.status + " হয়েছে!", "err");
+      return;
+    }
+    try {
+      let rejected = false;
+      try {
+        const apiRes = await callAdminApi("withdrawals.reject", { txId: tx.txId, pid, amount: amt });
+        if (apiRes && apiRes.ok) rejected = true;
+      } catch (err) {
+        console.warn("Backend API withdrawal reject fallback to client:", err);
+      }
+
+      if (!rejected) {
+        if (tx.withheld && pid && amt > 0) {
+          const uRef = ref(db, "users/" + pid);
+          const snap = await get(uRef);
+          const cur = snap.val() || { balance: 0 };
+          const newBal = (Number(cur.balance) || 0) + amt;
+          await update(uRef, { balance: newBal, lastAdjusted: Date.now() });
+        }
+        const tRef = ref(db, "transactions/" + tx.txId);
+        await update(tRef, { status: "rejected", rejectedAt: Date.now(), reason: "Rejected by admin" });
+      }
+      showToast("উইথড্রয়াল বাতিল ও ব্যালেন্স রিফান্ড সম্পন্ন হয়েছে");
     } catch (e: any) {
       showToast("ত্রুটি: " + e.message, "err");
     }
@@ -826,33 +960,135 @@ export default function App() {
 
             <div className="space-y-6">
               <div className="bg-[#13151a] border border-[#23262c] rounded-2xl p-5">
-                <h3 className="text-sm font-bold flex items-center gap-2 mb-4"><Receipt className="w-4 h-4 text-[#ffb82e]" /> পেন্ডিং ডিপোজিট ({deposits.length})</h3>
-                <div className="space-y-3 max-h-[420px] overflow-y-auto">
-                  {deposits.length === 0 ? (
-                    <div className="text-center py-8 text-[#8a8e97] text-xs">কোনো পেন্ডিং ডিপোজিট নেই</div>
-                  ) : (
-                    deposits.map(d => (
-                      <div key={d.txId} className="bg-[#0e1013] border border-[#23262c] rounded-xl p-3.5 space-y-2">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-mono font-bold text-[#3ea6ff]">{d.trxId || d.txId}</span>
-                          <span className="px-2 py-0.5 rounded bg-[rgba(255,184,46,0.15)] text-[#ffb82e] font-bold uppercase text-[9px]">{d.method || 'bkash'}</span>
-                        </div>
-                        <div className="text-xs text-[#8a8e97] space-y-1">
-                          <p>PID: <strong className="text-white">{d.pid || d.wallet || '—'}</strong></p>
-                          <p>পরিমাণ: <strong className="text-[#28a909] text-sm font-extrabold">৳{Number(d.amount || 0).toLocaleString()}</strong></p>
-                        </div>
-                        <div className="flex gap-2 pt-1">
-                          <button onClick={() => handleApproveDeposit(d)} className="flex-1 py-1.5 bg-[#28a909] hover:bg-[#1f8806] text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1">
-                            <Check className="w-3.5 h-3.5" /> অ্যাপ্রুভ
-                          </button>
-                          <button onClick={() => handleRejectDeposit(d.txId)} className="flex-1 py-1.5 bg-[#e5322d] hover:bg-[#c22a25] text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1">
-                            <Ban className="w-3.5 h-3.5" /> রিজেক্ট
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
+                <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#23262c]">
+                  <h3 className="text-sm font-bold flex items-center gap-2"><Receipt className="w-4 h-4 text-[#ffb82e]" /> লেনদেন ব্যবস্থাপনা</h3>
+                  <div className="flex gap-1 bg-[#0e1013] p-1 rounded-xl border border-[#23262c] text-[11px]">
+                    <button 
+                      onClick={() => setTxSubTab('deposits')} 
+                      className={`px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1.5 ${txSubTab === 'deposits' ? 'bg-[#28a909] text-white shadow' : 'text-[#8a8e97] hover:text-white'}`}
+                    >
+                      ডিপোজিট <span className="px-1.5 py-0.2 bg-black/40 rounded-full text-[9px]">{deposits.length}</span>
+                    </button>
+                    <button 
+                      onClick={() => setTxSubTab('withdrawals')} 
+                      className={`px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1.5 ${txSubTab === 'withdrawals' ? 'bg-[#ffb82e] text-black shadow' : 'text-[#8a8e97] hover:text-white'}`}
+                    >
+                      উইথড্র <span className="px-1.5 py-0.2 bg-black/40 rounded-full text-[9px]">{withdrawals.length}</span>
+                    </button>
+                    <button 
+                      onClick={() => setTxSubTab('history')} 
+                      className={`px-2.5 py-1 rounded-lg font-bold transition ${txSubTab === 'history' ? 'bg-[#3ea6ff] text-white shadow' : 'text-[#8a8e97] hover:text-white'}`}
+                    >
+                      হিস্ট্রি
+                    </button>
+                  </div>
                 </div>
+
+                {/* Deposits Tab */}
+                {txSubTab === 'deposits' && (
+                  <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                    {deposits.length === 0 ? (
+                      <div className="text-center py-8 text-[#8a8e97] text-xs">কোনো পেন্ডিং ডিপোজিট নেই</div>
+                    ) : (
+                      deposits.map(d => (
+                        <div key={d.txId} className="bg-[#0e1013] border border-[#23262c] rounded-xl p-3.5 space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-mono font-bold text-[#3ea6ff]">{d.trxId || d.txId}</span>
+                            <span className="px-2 py-0.5 rounded bg-[rgba(255,184,46,0.15)] text-[#ffb82e] font-bold uppercase text-[9px]">{d.method || 'bkash'}</span>
+                          </div>
+                          <div className="text-xs text-[#8a8e97] space-y-1">
+                            <p>PID: <strong className="text-white font-mono">{d.pid || d.wallet || '—'}</strong></p>
+                            <p>পরিমাণ: <strong className="text-[#28a909] text-sm font-extrabold">৳{Number(d.amount || 0).toLocaleString()}</strong></p>
+                            <p className="text-[10px] text-[#6b7280]">{d.timestamp || d.ts ? new Date(d.timestamp || d.ts).toLocaleString() : ''}</p>
+                          </div>
+                          <div className="flex gap-2 pt-1">
+                            <button onClick={() => handleApproveDeposit(d)} className="flex-1 py-1.5 bg-[#28a909] hover:bg-[#1f8806] text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition">
+                              <Check className="w-3.5 h-3.5" /> কনফার্ম (ক্রেডিট)
+                            </button>
+                            <button onClick={() => handleRejectDeposit(d.txId)} className="flex-1 py-1.5 bg-[#e5322d] hover:bg-[#c22a25] text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition">
+                              <Ban className="w-3.5 h-3.5" /> রিজেক্ট
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {/* Withdrawals Tab */}
+                {txSubTab === 'withdrawals' && (
+                  <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                    {withdrawals.length === 0 ? (
+                      <div className="text-center py-8 text-[#8a8e97] text-xs">কোনো পেন্ডিং উইথড্রয়াল নেই</div>
+                    ) : (
+                      withdrawals.map(w => (
+                        <div key={w.txId} className="bg-[#0e1013] border border-[#23262c] rounded-xl p-3.5 space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-mono font-bold text-[#ffb82e]">{w.txId}</span>
+                            <span className="px-2 py-0.5 rounded bg-[rgba(255,184,46,0.15)] text-[#ffb82e] font-bold uppercase text-[9px]">{w.method || 'bkash'}</span>
+                          </div>
+                          <div className="text-xs text-[#8a8e97] space-y-1">
+                            <p>PID: <strong className="text-white font-mono">{w.pid || '—'}</strong></p>
+                            <p>নম্বর / ওয়ালেট: <strong className="text-white font-mono">{w.wallet || '—'}</strong></p>
+                            <p>পরিমাণ: <strong className="text-[#e5322d] text-sm font-extrabold">৳{Number(w.amount || 0).toLocaleString()}</strong></p>
+                            <p className="text-[10px] text-[#6b7280]">{w.timestamp || w.ts ? new Date(w.timestamp || w.ts).toLocaleString() : ''}</p>
+                          </div>
+                          <div className="flex gap-2 pt-1">
+                            <button onClick={() => handleApproveWithdrawal(w)} className="flex-1 py-1.5 bg-[#28a909] hover:bg-[#1f8806] text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition">
+                              <Check className="w-3.5 h-3.5" /> কনফার্ম (পেইড)
+                            </button>
+                            <button onClick={() => handleRejectWithdrawal(w)} className="flex-1 py-1.5 bg-[#e5322d] hover:bg-[#c22a25] text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition">
+                              <Ban className="w-3.5 h-3.5" /> রিজেক্ট ও রিফান্ড
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {/* History Tab */}
+                {txSubTab === 'history' && (
+                  <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                    {allTransactions.length === 0 ? (
+                      <div className="text-center py-8 text-[#8a8e97] text-xs">কোনো লেনদেন রেকর্ড নেই</div>
+                    ) : (
+                      allTransactions.slice(0, 40).map(t => {
+                        const isConfirmed = t.status === 'confirmed' || t.status === 'approved';
+                        const isRejected = t.status === 'rejected';
+                        const isWithdraw = t.type === 'withdraw' || t.type === 'withdrawal';
+                        return (
+                          <div key={t.txId} className="bg-[#0e1013] border border-[#23262c] rounded-xl p-2.5 flex items-center justify-between text-xs">
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-bold text-white text-[11px]">{t.trxId || t.txId}</span>
+                                <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${isWithdraw ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                                  {isWithdraw ? 'Withdraw' : 'Deposit'}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-[#8a8e97]">
+                                PID: <span className="font-mono text-white">{t.pid || t.wallet || '—'}</span>
+                                {t.timestamp && ` • ${new Date(t.timestamp).toLocaleDateString()}`}
+                              </p>
+                            </div>
+                            <div className="text-right space-y-1">
+                              <div className={`font-extrabold text-xs ${isWithdraw ? 'text-[#e5322d]' : 'text-[#28a909]'}`}>
+                                {isWithdraw ? '-' : '+'}৳{Number(t.amount || 0).toLocaleString()}
+                              </div>
+                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase inline-block ${
+                                isConfirmed ? 'bg-[rgba(40,169,9,0.15)] text-[#28a909]' :
+                                isRejected ? 'bg-[rgba(229,50,45,0.15)] text-[#e5322d]' :
+                                'bg-[rgba(255,184,46,0.15)] text-[#ffb82e]'
+                              }`}>
+                                {t.status || 'pending'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="bg-[#13151a] border border-[#23262c] rounded-2xl p-5">
@@ -1330,19 +1566,31 @@ export default function App() {
                   onClick={() => handleCreateTestDeposit('bkash', testAmount)}
                   className="px-4 py-2.5 rounded-xl bg-[#b30068] hover:bg-[#900052] text-white text-xs font-bold flex items-center gap-2 transition shadow-md"
                 >
-                  <Send className="w-3.5 h-3.5" /> bKash ৳{testAmount} টেস্ট ডিপোজিট পাঠান
+                  <Send className="w-3.5 h-3.5" /> bKash ৳{testAmount} টেস্ট ডিপোজিট
                 </button>
                 <button 
                   onClick={() => handleCreateTestDeposit('nagad', testAmount)}
                   className="px-4 py-2.5 rounded-xl bg-[#e74738] hover:bg-[#c2372a] text-white text-xs font-bold flex items-center gap-2 transition shadow-md"
                 >
-                  <Send className="w-3.5 h-3.5" /> Nagad ৳{testAmount} টেস্ট ডিপোজিট পাঠান
+                  <Send className="w-3.5 h-3.5" /> Nagad ৳{testAmount} টেস্ট ডিপোজিট
+                </button>
+                <button 
+                  onClick={() => handleCreateTestWithdrawal('bkash', Math.min(testAmount, 500))}
+                  className="px-4 py-2.5 rounded-xl bg-[#80004a] hover:bg-[#66003b] border border-[#b30068] text-white text-xs font-bold flex items-center gap-2 transition"
+                >
+                  <ArrowRight className="w-3.5 h-3.5 text-[#ff7666]" /> bKash ৳{Math.min(testAmount, 500)} টেস্ট উইথড্র
+                </button>
+                <button 
+                  onClick={() => handleCreateTestWithdrawal('nagad', Math.min(testAmount, 500))}
+                  className="px-4 py-2.5 rounded-xl bg-[#992218] hover:bg-[#801b13] border border-[#e74738] text-white text-xs font-bold flex items-center gap-2 transition"
+                >
+                  <ArrowRight className="w-3.5 h-3.5 text-[#ffb82e]" /> Nagad ৳{Math.min(testAmount, 500)} টেস্ট উইথড্র
                 </button>
                 <button 
                   onClick={() => setTab('admin')}
                   className="px-4 py-2.5 rounded-xl bg-[#1a1d23] hover:bg-[#23262c] border border-[#23262c] text-white text-xs font-bold flex items-center gap-2 transition"
                 >
-                  <span>পেন্ডিং ডিপোজিট তালিকায় যান</span> <ArrowRight className="w-3.5 h-3.5" />
+                  <span>পেন্ডিং লেনদেন তালিকায় যান</span> <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
